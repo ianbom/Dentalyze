@@ -40,7 +40,7 @@ class StaffUserService
     public function create(array $data, string $role): User
     {
         return User::create([
-            'name' => $data['name'],
+            'name' => $this->normalizeName($data['name'], $role),
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'password' => Hash::make($data['password']),
@@ -56,7 +56,7 @@ class StaffUserService
         $user = $this->findByRole($user, $role);
 
         $payload = [
-            'name' => $data['name'],
+            'name' => $this->normalizeName($data['name'], $role),
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
         ];
@@ -80,6 +80,19 @@ class StaffUserService
         return User::query()
             ->where('role', $role)
             ->findOrFail($user);
+    }
+
+    private function normalizeName(string $name, string $role): string
+    {
+        $name = preg_replace('/\s+/', ' ', trim($name)) ?? '';
+
+        if ($role !== 'dokter') {
+            return $name;
+        }
+
+        $name = preg_replace('/^drg\.\s*/i', '', $name) ?? '';
+
+        return 'drg. '.trim($name);
     }
 
     /**

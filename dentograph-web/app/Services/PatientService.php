@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Patient;
 use App\Models\Radiograph;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -105,7 +106,9 @@ class PatientService
      */
     public function create(array $data): string
     {
-        return DB::transaction(function () use ($data): string {
+        $data['age'] = Carbon::parse($data['birth_date'])->age;
+
+        $user = DB::transaction(function () use ($data): User {
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'] ?? null,
@@ -124,8 +127,14 @@ class PatientService
                 'gender' => $data['gender'],
             ]);
 
-            return (string) $data['nik'];
+            return $user;
         });
+
+        if (filled($user->email)) {
+            $user->sendEmailVerificationNotification();
+        }
+
+        return (string) $data['nik'];
     }
 
     /**
@@ -133,6 +142,8 @@ class PatientService
      */
     public function update(string $patient, array $data): string
     {
+        $data['age'] = Carbon::parse($data['birth_date'])->age;
+
         $patientModel = $this->findByNik($patient);
 
         DB::transaction(function () use ($data, $patientModel): void {

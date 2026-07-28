@@ -6,8 +6,8 @@ import {
     Sparkles,
 } from 'lucide-react';
 import AiChatWidget from '@/components/ai-chat-widget';
-import PatientHeader from '@/components/patient-header';
 import PatientFooter from '@/components/patient-footer';
+import PatientHeader from '@/components/patient-header';
 import { dashboard } from '@/routes';
 
 const conditions = [

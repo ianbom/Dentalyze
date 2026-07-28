@@ -38,6 +38,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'support' => [
+                'whatsapp' => config('app.patient_support_whatsapp'),
+            ],
             'auth' => [
                 'user' => $request->user(),
             ],

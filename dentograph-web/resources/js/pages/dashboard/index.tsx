@@ -1,9 +1,9 @@
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout'; // Tetap import untuk properti .layout
 import AdminDashboard from './AdminDashboard';
-import RadiographerDashboard from './RadiographerDashboard';
 import DoctorDashboard from './DoctorDashboard';
 import PatientDashboard from './PatientDashboard';
+import RadiographerDashboard from './RadiographerDashboard';
 
 export default function Dashboard(props: any) {
     const { role } = props;

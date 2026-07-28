@@ -1,6 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    AlertTriangle,
     CalendarDays,
     Eye,
     FileClock,
@@ -11,10 +10,10 @@ import {
     Plus,
     Search,
     Trash2,
-    X,
     Users,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import ConfirmDeleteDialog from '@/components/confirm-delete-dialog';
 import ListPagination, {
     getPageItems,
     getTotalPages,
@@ -396,58 +395,22 @@ export default function PatientsIndex({
                     )}
                 </section>
 
-                {deletingPatient && (
-                    <div className="fixed inset-0 z-50 grid place-items-center bg-[#0b1f3f]/20 p-4 backdrop-blur-sm">
-                        <section className="w-full max-w-md overflow-hidden rounded-[30px] border border-white/70 bg-white/75 p-6 shadow-[0_24px_55px_rgba(8,120,232,0.22)] backdrop-blur-xl">
-                            <div className="flex items-start justify-between gap-4">
-                                <span className="grid size-14 place-items-center rounded-[18px] bg-rose-50 text-rose-500 shadow-sm">
-                                    <AlertTriangle size={24} />
-                                </span>
-                                <button
-                                    aria-label="Tutup konfirmasi"
-                                    className="grid size-9 place-items-center rounded-[12px] border border-white/70 bg-white/50 text-[#7B8BA7] transition hover:bg-white"
-                                    onClick={() => setDeletingPatient(null)}
-                                    type="button"
-                                >
-                                    <X size={16} />
-                                </button>
-                            </div>
-
-                            <h2 className="mt-5 text-[24px] font-black text-[#0878e8]">
-                                Hapus pasien?
-                            </h2>
-                            <p className="mt-3 text-sm leading-7 text-[#808999]">
-                                Data pasien{' '}
-                                <span className="font-black text-[#22304F]">
-                                    {deletingPatient.name}
-                                </span>{' '}
-                                akan dihapus dari daftar. Tindakan ini juga
-                                menghapus akun pasien yang terhubung.
-                            </p>
-
-                            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-                                <button
-                                    className="inline-flex h-12 items-center justify-center rounded-[14px] border border-white/70 bg-white/50 px-5 text-xs font-black tracking-wider text-[#7B8BA7] uppercase shadow-sm transition hover:bg-white"
-                                    onClick={() => setDeletingPatient(null)}
-                                    type="button"
-                                >
-                                    Batal
-                                </button>
-                                <button
-                                    className="inline-flex h-12 items-center justify-center gap-2 rounded-[14px] bg-rose-500 px-5 text-xs font-black tracking-wider text-white uppercase shadow-[0_12px_28px_rgba(244,63,94,0.22)] transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-70"
-                                    disabled={deleteProcessing}
-                                    onClick={deletePatient}
-                                    type="button"
-                                >
-                                    <Trash2 size={16} />
-                                    {deleteProcessing
-                                        ? 'Menghapus'
-                                        : 'Hapus Pasien'}
-                                </button>
-                            </div>
-                        </section>
-                    </div>
-                )}
+                <ConfirmDeleteDialog
+                    description={
+                        deletingPatient
+                            ? `Data pasien ${deletingPatient.name} dan akun terkait akan dihapus permanen.`
+                            : ''
+                    }
+                    onConfirm={deletePatient}
+                    onOpenChange={(open) => {
+                        if (!open && !deleteProcessing) {
+                            setDeletingPatient(null);
+                        }
+                    }}
+                    open={deletingPatient !== null}
+                    processing={deleteProcessing}
+                    title="Hapus pasien?"
+                />
             </div>
         </>
     );

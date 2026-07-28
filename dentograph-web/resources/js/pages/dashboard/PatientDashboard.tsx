@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
@@ -62,7 +62,12 @@ type PatientAiInsight = {
 };
 
 type PatientDashboardProps = {
-    user: { name: string; patient?: { nik?: string } | null };
+    user: {
+        name: string;
+        email?: string | null;
+        email_verified_at?: string | null;
+        patient?: { nik?: string } | null;
+    };
     patient: PatientProfile | null;
     stats: PatientStats;
     latest_radiograph: PatientRadiograph | null;
@@ -82,6 +87,11 @@ export default function PatientDashboard({
     stats,
     user,
 }: PatientDashboardProps) {
+    const { support } = usePage().props as {
+        support?: { whatsapp?: string | null };
+    };
+    const whatsapp = support?.whatsapp?.replace(/\D/g, '') ?? '';
+    const whatsappHref = whatsapp ? 'https://wa.me/' + whatsapp : undefined;
     const patientName = patient?.name ?? user.name;
     const patientNik = patient?.nik ?? user.patient?.nik ?? '-';
     const healthLabel = latestRadiograph
@@ -147,8 +157,18 @@ export default function PatientDashboard({
                                         Status Akun
                                     </p>
 
-                                    <h4 className="mt-2 text-[17px] font-bold text-[#15b98c]">
-                                        Active Patient
+                                    <h4
+                                        className={
+                                            user.email_verified_at
+                                                ? 'mt-2 text-[17px] font-bold text-[#15b98c]'
+                                                : 'mt-2 text-[17px] font-bold text-amber-600'
+                                        }
+                                    >
+                                        {user.email_verified_at
+                                            ? 'Email Terverifikasi'
+                                            : user.email
+                                              ? 'Email Belum Terverifikasi'
+                                              : 'Email Belum Ditambahkan'}
                                     </h4>
                                 </div>
                             </div>
@@ -190,10 +210,11 @@ export default function PatientDashboard({
                                         </p>
 
                                         <Link
-                                            className={`mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[12px] font-black tracking-[0.14em] text-[#0878e8] uppercase transition hover:scale-[1.03] ${stats.my_history_count > 0
-                                                ? ''
-                                                : 'pointer-events-none opacity-60'
-                                                }`}
+                                            className={`mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[12px] font-black tracking-[0.14em] text-[#0878e8] uppercase transition hover:scale-[1.03] ${
+                                                stats.my_history_count > 0
+                                                    ? ''
+                                                    : 'pointer-events-none opacity-60'
+                                            }`}
                                             href={
                                                 stats.my_history_count > 0
                                                     ? '#riwayat'
@@ -346,7 +367,7 @@ export default function PatientDashboard({
                                         >
                                             <AlertTriangle size={20} />
                                         </span>
-                                        <h3 className="text-[16px] font-black leading-5 text-[#1f2f4f]">
+                                        <h3 className="text-[16px] leading-5 font-black text-[#1f2f4f]">
                                             {insight.title}
                                         </h3>
                                     </div>
@@ -429,11 +450,12 @@ export default function PatientDashboard({
                                                     '-'}
                                             </p>
                                             <span
-                                                className={`mt-2 inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase ${item.status ===
+                                                className={`mt-2 inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase ${
+                                                    item.status ===
                                                     'terverifikasi'
-                                                    ? 'bg-emerald-100 text-emerald-600'
-                                                    : 'bg-amber-100 text-amber-600'
-                                                    }`}
+                                                        ? 'bg-emerald-100 text-emerald-600'
+                                                        : 'bg-amber-100 text-amber-600'
+                                                }`}
                                             >
                                                 {readableStatus(item.status)}
                                             </span>
@@ -484,7 +506,7 @@ export default function PatientDashboard({
 
                 <section
                     id="insight"
-                    className="scroll-mt-32 mt-6 overflow-hidden rounded-[30px] border border-white/70 bg-white/35 p-7 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md"
+                    className="mt-6 scroll-mt-32 overflow-hidden rounded-[30px] border border-white/70 bg-white/35 p-7 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md"
                 >
                     <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
                         <div>
@@ -555,14 +577,19 @@ export default function PatientDashboard({
 
                                 <div className="mt-8 flex items-center gap-4">
                                     <a
-                                        href="#"
+                                        href="#top"
+                                        aria-label="Kembali ke bagian atas"
                                         className="group flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/70 bg-white/45 text-[#0878e8] shadow-[0_12px_25px_rgba(19,184,255,0.08)] backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:bg-[#0878e8] hover:text-white"
                                     >
                                         <BookOpen size={18} strokeWidth={2.1} />
                                     </a>
 
                                     <a
-                                        href="#"
+                                        aria-disabled={!whatsappHref}
+                                        aria-label="Hubungi Dentalyze melalui WhatsApp"
+                                        href={whatsappHref}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
                                         className="group flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/70 bg-white/45 text-[#0878e8] shadow-[0_12px_25px_rgba(19,184,255,0.08)] backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:bg-[#0878e8] hover:text-white"
                                     >
                                         <MessageCircleMore
@@ -572,7 +599,11 @@ export default function PatientDashboard({
                                     </a>
 
                                     <a
-                                        href="#"
+                                        aria-disabled={!whatsappHref}
+                                        aria-label="Hubungi Dentalyze melalui WhatsApp"
+                                        href={whatsappHref}
+                                        rel="noopener noreferrer"
+                                        target="_blank"
                                         className="group flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/70 bg-white/45 text-[#0878e8] shadow-[0_12px_25px_rgba(19,184,255,0.08)] backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:bg-[#0878e8] hover:text-white"
                                     >
                                         <PhoneCall

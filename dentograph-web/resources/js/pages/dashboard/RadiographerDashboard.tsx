@@ -10,8 +10,8 @@ import {
     Sparkles,
     UserRound,
     Users,
-    type LucideIcon,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import patients from '@/routes/patients';
 import { edit as editProfile } from '@/routes/profile';

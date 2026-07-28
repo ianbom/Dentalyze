@@ -4,12 +4,17 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Responses\GenericPasswordResetLinkResponse;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\FailedPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Contracts\PasswordResetLinkRequestResponse;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 
@@ -20,13 +25,14 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(PasswordResetLinkRequestResponse::class, GenericPasswordResetLinkResponse::class);
+        $this->app->singleton(FailedPasswordResetLinkRequestResponse::class, GenericPasswordResetLinkResponse::class);
     }
 
     /**
      * Bootstrap any application services.
      */
-   public function boot(): void
+    public function boot(): void
     {
         $this->configureActions();
         $this->configureViews();
@@ -38,15 +44,15 @@ class FortifyServiceProvider extends ServiceProvider
 
             // Jika input 16 digit angka, cari berdasarkan NIK di tabel patients
             if (is_numeric($username) && strlen($username) == 16) {
-                $user = \App\Models\User::whereHas('patient', function ($query) use ($username) {
+                $user = User::whereHas('patient', function ($query) use ($username) {
                     $query->where('nik', $username);
                 })->first();
             } else {
                 // Jika bukan 16 digit, cari berdasarkan email (Admin/Dokter/Radio)
-                $user = \App\Models\User::where('email', $username)->first();
+                $user = User::where('email', $username)->first();
             }
 
-            if ($user && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+            if ($user && Hash::check($request->password, $user->password)) {
                 return $user;
             }
 

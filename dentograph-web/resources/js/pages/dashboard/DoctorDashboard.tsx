@@ -9,8 +9,8 @@ import {
     Stethoscope,
     UserRound,
     Users,
-    type LucideIcon,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { edit as editProfile } from '@/routes/profile';
 import radiographs from '@/routes/radiographs';

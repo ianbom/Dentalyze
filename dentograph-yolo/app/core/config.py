@@ -50,7 +50,7 @@ class Settings:
     embedding_dimensions: int = field(default_factory=lambda: int(os.getenv("EMBEDDING_DIMENSIONS", "1024")))
     db_host: str = field(default_factory=lambda: os.getenv("DB_HOST", "127.0.0.1"))
     db_port: int = field(default_factory=lambda: int(os.getenv("DB_PORT", "3306")))
-    db_database: str = field(default_factory=lambda: os.getenv("DB_DATABASE", "dentograph-ai"))
+    db_database: str = field(default_factory=lambda: os.getenv("DB_DATABASE", "dentalyze"))
     db_username: str = field(default_factory=lambda: os.getenv("DB_USERNAME", "root"))
     db_password: str = field(default_factory=lambda: os.getenv("DB_PASSWORD", ""))
     rag_top_k: int = field(default_factory=lambda: int(os.getenv("AI_RAG_TOP_K", "4")))

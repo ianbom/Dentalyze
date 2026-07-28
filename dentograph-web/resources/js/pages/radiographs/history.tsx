@@ -273,7 +273,7 @@ export default function RadiographsHistory({
                                     <button
                                         className="absolute top-4 right-4 z-20 grid size-10 place-items-center rounded-[14px] border border-rose-100/80 bg-rose-50/90 text-rose-500 shadow-[0_12px_28px_rgba(244,63,94,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-rose-100"
                                         onClick={() =>
-                                                    setDeletingId(item.id_radiograph)
+                                            setDeletingId(item.id_radiograph)
                                         }
                                         title="Hapus radiograf dan hasil deteksi"
                                         type="button"
@@ -296,8 +296,19 @@ export default function RadiographsHistory({
                                         <span className="absolute top-3 left-3">
                                             <StatusBadge status={item.status} />
                                         </span>
-                <ConfirmDeleteDialog description="Radiograf dan seluruh hasil deteksinya akan dihapus permanen." onConfirm={() => deletingId && deleteRadiograph(deletingId)} onOpenChange={(open) => !open && setDeletingId(null)} open={deletingId !== null} title="Hapus radiograf?" />
-            </div>
+                                        <ConfirmDeleteDialog
+                                            description="Radiograf dan seluruh hasil deteksinya akan dihapus permanen."
+                                            onConfirm={() =>
+                                                deletingId &&
+                                                deleteRadiograph(deletingId)
+                                            }
+                                            onOpenChange={(open) =>
+                                                !open && setDeletingId(null)
+                                            }
+                                            open={deletingId !== null}
+                                            title="Hapus radiograf?"
+                                        />
+                                    </div>
 
                                     <div className="flex min-w-0 flex-col justify-between gap-4">
                                         <div className="min-w-0">
@@ -311,11 +322,11 @@ export default function RadiographsHistory({
                                                     </h3>
                                                 </div>
                                                 <p className="shrink-0 text-xs font-semibold text-[#9BA8BC]">
-                                            {item.relative_time ??
-                                                item.created_at ??
-                                                '-'}
-                                        </p>
-                                    </div>
+                                                    {item.relative_time ??
+                                                        item.created_at ??
+                                                        '-'}
+                                                </p>
+                                            </div>
                                             <p className="mt-1 truncate text-xs font-semibold text-[#7B8BA7]">
                                                 {item.id_radiograph}
                                             </p>

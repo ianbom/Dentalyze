@@ -3,7 +3,9 @@ import users from '@/routes/users';
 
 export default function UsersIndex() {
     return (
-        <PlaceholderPage title="Users">ini halaman daftar dokter</PlaceholderPage>
+        <PlaceholderPage title="Users">
+            ini halaman daftar dokter
+        </PlaceholderPage>
     );
 }
 

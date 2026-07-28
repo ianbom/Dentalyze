@@ -7,7 +7,8 @@ import {
     Sparkles,
     X,
 } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useMemo, useState } from 'react';
 
 type Message = {
     role: 'user' | 'assistant';

@@ -6,6 +6,7 @@ use App\Models\Radiograph;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Throwable;
 
 class AiDetectionService
@@ -16,6 +17,10 @@ class AiDetectionService
     public function analyze(string $radiograph): array
     {
         $radiographModel = Radiograph::query()->findOrFail($radiograph);
+
+        if ($radiographModel->status === 'terverifikasi') {
+            throw new ConflictHttpException(__('Radiograf sudah difinalisasi dan tidak dapat dianalisis ulang.'));
+        }
         $timeout = $this->timeout();
 
         if (function_exists('set_time_limit')) {

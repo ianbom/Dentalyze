@@ -17,22 +17,25 @@ export default function PatientHeader({
 
     useEffect(() => {
         if (!localAnchors) {
-return;
-}
+            return;
+        }
 
-        const observer = new IntersectionObserver((entries) => {
-            const visible = entries.find((entry) => entry.isIntersecting);
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries.find((entry) => entry.isIntersecting);
 
-            if (visible) {
-setActiveSection(visible.target.id);
-}
-        }, { rootMargin: '-25% 0px -60%', threshold: 0.15 });
+                if (visible) {
+                    setActiveSection(visible.target.id);
+                }
+            },
+            { rootMargin: '-25% 0px -60%', threshold: 0.15 },
+        );
         ['riwayat', 'insight', 'contact'].forEach((id) => {
             const element = document.getElementById(id);
 
             if (element) {
-observer.observe(element);
-}
+                observer.observe(element);
+            }
         });
 
         return () => observer.disconnect();

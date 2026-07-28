@@ -118,7 +118,9 @@ export default function PatientsHistory({
         <>
             <Head title={`Riwayat ${patient.name}`} />
 
-            <div className={`space-y-6 ${isPatient ? 'px-12 pb-12 lg:px-20' : ''}`}>
+            <div
+                className={`space-y-6 ${isPatient ? 'px-12 pb-12 lg:px-20' : ''}`}
+            >
                 {isPatient && (
                     <header className="flex flex-col gap-4 rounded-[28px] border border-white/70 bg-white/70 px-5 py-5 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -242,10 +244,11 @@ export default function PatientsHistory({
                                 <div className="flex flex-wrap gap-2 sm:justify-end">
                                     {tabs.map((tab) => (
                                         <button
-                                            className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase transition ${status === tab.value
-                                                ? 'bg-[#13b8ff] text-white shadow-[0_10px_22px_rgba(8,120,232,0.18)]'
-                                                : 'bg-white/45 text-[#7B8BA7] hover:bg-white/70 hover:text-[#0878e8]'
-                                                }`}
+                                            className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase transition ${
+                                                status === tab.value
+                                                    ? 'bg-[#13b8ff] text-white shadow-[0_10px_22px_rgba(8,120,232,0.18)]'
+                                                    : 'bg-white/45 text-[#7B8BA7] hover:bg-white/70 hover:text-[#0878e8]'
+                                            }`}
                                             key={tab.value}
                                             onClick={() => {
                                                 setStatus(tab.value);
@@ -383,10 +386,11 @@ function StatusBadge({ status }: { status: string }) {
 
     return (
         <span
-            className={`rounded-[10px] px-3 py-1 text-xs font-black shadow-sm ${verified
-                ? 'bg-emerald-100 text-emerald-600'
-                : 'bg-amber-100 text-amber-600'
-                }`}
+            className={`rounded-[10px] px-3 py-1 text-xs font-black shadow-sm ${
+                verified
+                    ? 'bg-emerald-100 text-emerald-600'
+                    : 'bg-amber-100 text-amber-600'
+            }`}
         >
             {verified ? 'Terverifikasi' : 'Menunggu'}
         </span>
@@ -412,10 +416,11 @@ function Stat({
         >
             <img
                 alt=""
-                className={`pointer-events-none absolute -right-20 -bottom-24 w-56 transition duration-500 group-hover:scale-110 ${strong
-                    ? 'opacity-[0.12] group-hover:opacity-[0.18]'
-                    : 'opacity-[0.08] group-hover:opacity-[0.13]'
-                    }`}
+                className={`pointer-events-none absolute -right-20 -bottom-24 w-56 transition duration-500 group-hover:scale-110 ${
+                    strong
+                        ? 'opacity-[0.12] group-hover:opacity-[0.18]'
+                        : 'opacity-[0.08] group-hover:opacity-[0.13]'
+                }`}
                 src="/asset/images/gigi.png"
             />
             <div className="relative z-10">

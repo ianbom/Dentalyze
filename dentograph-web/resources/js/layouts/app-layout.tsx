@@ -23,11 +23,10 @@ import detection from '@/routes/detection';
 import doctors from '@/routes/doctors';
 import knowledge from '@/routes/knowledge';
 import patients from '@/routes/patients';
-import radiographers from '@/routes/radiographers';
 import { edit as editProfile } from '@/routes/profile';
+import radiographers from '@/routes/radiographers';
 import * as radiographHistory from '@/routes/radiographs/history';
 import verification from '@/routes/verification';
-import type { BreadcrumbItem } from '@/types';
 
 const navItems = [
     {
@@ -227,13 +226,7 @@ function MedicalIllustration() {
     );
 }
 
-export default function AppLayout({
-    breadcrumbs = [],
-    children,
-}: {
-    breadcrumbs?: BreadcrumbItem[];
-    children: React.ReactNode;
-}) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
     const { auth } = usePage().props as {
         auth?: { user?: { role?: string } };
     };

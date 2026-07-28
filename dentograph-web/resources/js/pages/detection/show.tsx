@@ -131,16 +131,23 @@ export default function DetectionShow({
         auth?: { user?: { role?: string } };
     };
     const isPatient = auth?.user?.role === 'pasien';
-    const canManageDetections = permissions.analyze || permissions.finalize;
+    const isFinalized = radiograph.status === 'terverifikasi';
+    const canManageDetections =
+        !isFinalized && (permissions.analyze || permissions.finalize);
 
     useEffect(() => {
         if (!analyzing) {
-return;
-}
+            return;
+        }
 
         document.body.style.overflow = 'hidden';
         const timer = window.setInterval(() => {
-            setAnalysisProgress((current) => Math.min(current + Math.max(1, Math.round((94 - current) / 8)), 94));
+            setAnalysisProgress((current) =>
+                Math.min(
+                    current + Math.max(1, Math.round((94 - current) / 8)),
+                    94,
+                ),
+            );
         }, 650);
 
         return () => {
@@ -170,11 +177,20 @@ return;
 
     function selectTooth(fdi: string) {
         if (!canManageDetections) {
-return;
-}
+            return;
+        }
 
         if (!byFdi.has(fdi)) {
-            setItems((current) => [...current, { no_fdi: fdi, abnormality: 'Karies', analysis: '', is_active: true, source: 'manual' }]);
+            setItems((current) => [
+                ...current,
+                {
+                    no_fdi: fdi,
+                    abnormality: 'Karies',
+                    analysis: '',
+                    is_active: true,
+                    source: 'manual',
+                },
+            ]);
         }
 
         setSelectedFdi(fdi);
@@ -243,7 +259,7 @@ return;
             if (!response.ok) {
                 throw new Error(
                     payload.message ??
-                    `AI gagal mengembalikan hasil deteksi (HTTP ${response.status}).`,
+                        `AI gagal mengembalikan hasil deteksi (HTTP ${response.status}).`,
                 );
             }
 
@@ -264,7 +280,7 @@ return;
 
             setAnalysisNotice(
                 payload.message ??
-                `AI berhasil mengembalikan ${results.length} hasil deteksi sementara. Lengkapi catatan lalu simpan final.`,
+                    `AI berhasil mengembalikan ${results.length} hasil deteksi sementara. Lengkapi catatan lalu simpan final.`,
             );
         } catch (error) {
             setAnalysisError(
@@ -329,9 +345,14 @@ return;
                                 crop gigi. Jangan tutup halaman ini.
                             </p>
                             <div className="mt-6 h-3 overflow-hidden rounded-full bg-[#D8F0FC]">
-                                <div className="h-full rounded-full bg-[linear-gradient(90deg,#13b8ff,#0878e8)] transition-[width] duration-500" style={{ width: `${analysisProgress}%` }} />
+                                <div
+                                    className="h-full rounded-full bg-[linear-gradient(90deg,#13b8ff,#0878e8)] transition-[width] duration-500"
+                                    style={{ width: `${analysisProgress}%` }}
+                                />
                             </div>
-                            <p className="mt-2 text-sm font-black text-[#0878e8]">{analysisProgress}%</p>
+                            <p className="mt-2 text-sm font-black text-[#0878e8]">
+                                {analysisProgress}%
+                            </p>
                         </div>
                     </div>
                 )}
@@ -408,24 +429,29 @@ return;
                             <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
                                 {/* STATUS */}
                                 <div
-                                    className={`inline-flex h-11 items-center gap-2 rounded-[14px] px-5 text-xs font-black tracking-[0.18em] uppercase shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur-md ${radiograph.status === 'terverifikasi'
+                                    className={`inline-flex h-11 items-center gap-2 rounded-[14px] px-5 text-xs font-black tracking-[0.18em] uppercase shadow-[0_10px_28px_rgba(0,0,0,0.12)] backdrop-blur-md ${
+                                        radiograph.status === 'terverifikasi'
                                             ? 'bg-emerald-400/18 text-emerald-100'
                                             : 'bg-cyan-400/18 text-cyan-100'
-                                        }`}
+                                    }`}
                                 >
                                     <span className="relative flex h-2.5 w-2.5">
                                         <span
-                                            className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${radiograph.status === 'terverifikasi'
+                                            className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${
+                                                radiograph.status ===
+                                                'terverifikasi'
                                                     ? 'bg-emerald-300'
                                                     : 'bg-cyan-300'
-                                                }`}
+                                            }`}
                                         />
 
                                         <span
-                                            className={`relative inline-flex h-2.5 w-2.5 rounded-full ${radiograph.status === 'terverifikasi'
+                                            className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                                                radiograph.status ===
+                                                'terverifikasi'
                                                     ? 'bg-emerald-300'
                                                     : 'bg-cyan-300'
-                                                }`}
+                                            }`}
                                         />
                                     </span>
 
@@ -451,10 +477,11 @@ return;
                         </div>
                         {(analysisNotice || analysisError) && (
                             <div
-                                className={`mt-5 rounded-[16px] px-4 py-3 text-sm font-semibold ${analysisError
-                                    ? 'bg-rose-400/15 text-rose-100'
-                                    : 'bg-emerald-400/15 text-emerald-100'
-                                    }`}
+                                className={`mt-5 rounded-[16px] px-4 py-3 text-sm font-semibold ${
+                                    analysisError
+                                        ? 'bg-rose-400/15 text-rose-100'
+                                        : 'bg-emerald-400/15 text-emerald-100'
+                                }`}
                             >
                                 {analysisError ?? analysisNotice}
                             </div>
@@ -524,15 +551,16 @@ return;
 
                                     return (
                                         <button
-                                            className={`grid h-14 w-14 place-items-center rounded-[14px] text-sm font-black transition ${item
-                                                ? item.is_active
-                                                    ? (conditionStyles[
-                                                        item.abnormality
-                                                    ] ??
-                                                        conditionStyles.Normal)
-                                                    : 'bg-rose-500 text-white line-through shadow-[0_10px_22px_rgba(244,63,94,0.2)]'
-                                                : 'border-2 border-dashed border-[#8EA2B9]/70 bg-[#E0ECF5] text-[#7B8BA7] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_22px_rgba(56,120,168,0.10)]'
-                                                }`}
+                                            className={`grid h-14 w-14 place-items-center rounded-[14px] text-sm font-black transition ${
+                                                item
+                                                    ? item.is_active
+                                                        ? (conditionStyles[
+                                                              item.abnormality
+                                                          ] ??
+                                                          conditionStyles.Normal)
+                                                        : 'bg-rose-500 text-white line-through shadow-[0_10px_22px_rgba(244,63,94,0.2)]'
+                                                    : 'border-2 border-dashed border-[#8EA2B9]/70 bg-[#E0ECF5] text-[#7B8BA7] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_10px_22px_rgba(56,120,168,0.10)]'
+                                            }`}
                                             key={fdi}
                                             onClick={() => selectTooth(fdi)}
                                             type="button"
@@ -550,7 +578,12 @@ return;
                         ))}
                     </div>
 
-                    {canManageDetections && <p className="mt-5 text-sm font-semibold text-[#62708f]">Klik gigi berwarna abu-abu untuk menambahkan hasil manual.</p>}
+                    {canManageDetections && (
+                        <p className="mt-5 text-sm font-semibold text-[#62708f]">
+                            Klik gigi berwarna abu-abu untuk menambahkan hasil
+                            manual.
+                        </p>
+                    )}
                 </section>
 
                 <section className="mt-6 rounded-[30px] border border-white/70 bg-white/35 p-6 shadow-[0_24px_55px_rgba(19,184,255,0.1)] backdrop-blur-md">
@@ -631,14 +664,15 @@ return;
                                                     </td>
                                                     <td className="px-4 py-3 text-left">
                                                         <span
-                                                            className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${item.is_active
-                                                                ? (conditionStyles[
-                                                                    item
-                                                                        .abnormality
-                                                                ] ??
-                                                                    conditionStyles.Normal)
-                                                                : 'bg-rose-500 text-white'
-                                                                }`}
+                                                            className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${
+                                                                item.is_active
+                                                                    ? (conditionStyles[
+                                                                          item
+                                                                              .abnormality
+                                                                      ] ??
+                                                                      conditionStyles.Normal)
+                                                                    : 'bg-rose-500 text-white'
+                                                            }`}
                                                         >
                                                             {item.is_active
                                                                 ? item.abnormality
@@ -729,7 +763,7 @@ return;
                                         Kelainan
                                     </span>
                                     <select
-                                        className="h-12 w-full rounded-[14px] border border-white/70 bg-white/60 px-4 text-sm outline-none"
+                                        className="h-12 w-full rounded-[14px] border border-white/70 bg-white/60 px-4 text-sm text-[#22304F] transition outline-none focus:border-[#13b8ff] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                                         onChange={(event) =>
                                             updateDetection(
                                                 selectedItem.no_fdi,
@@ -742,7 +776,12 @@ return;
                                         value={selectedItem.abnormality}
                                     >
                                         {abnormalities.map((item) => (
-                                            <option key={item}>{item}</option>
+                                            <option
+                                                className="bg-white text-[#22304F]"
+                                                key={item}
+                                            >
+                                                {item}
+                                            </option>
                                         ))}
                                     </select>
                                 </label>
@@ -751,10 +790,11 @@ return;
                                         Status
                                     </span>
                                     <button
-                                        className={`h-12 w-full rounded-[14px] text-xs font-black uppercase ${selectedItem.is_active
-                                            ? 'bg-emerald-500 text-white'
-                                            : 'bg-rose-500 text-white'
-                                            }`}
+                                        className={`h-12 w-full rounded-[14px] text-xs font-black uppercase ${
+                                            selectedItem.is_active
+                                                ? 'bg-emerald-500 text-white'
+                                                : 'bg-rose-500 text-white'
+                                        }`}
                                         onClick={() =>
                                             toggle(selectedItem.no_fdi)
                                         }
@@ -771,7 +811,7 @@ return;
                                     Catatan Analisis
                                 </span>
                                 <textarea
-                                    className="min-h-36 w-full rounded-[18px] border border-white/70 bg-white/65 p-4 text-sm outline-none"
+                                    className="min-h-36 w-full rounded-[18px] border border-white/70 bg-white/65 p-4 text-sm text-[#22304F] transition outline-none placeholder:text-[#9BA8BC] focus:border-[#13b8ff]"
                                     onChange={(event) =>
                                         updateDetection(selectedItem.no_fdi, {
                                             analysis: event.target.value,

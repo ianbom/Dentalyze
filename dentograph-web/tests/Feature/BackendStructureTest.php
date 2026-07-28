@@ -57,9 +57,9 @@ test('dentograph form requests expose expected validation fields', function (str
 })->with([
     'store user' => ['App\Http\Requests\Users\StoreUserRequest', ['name', 'email', 'phone', 'role', 'password']],
     'update user' => ['App\Http\Requests\Users\UpdateUserRequest', ['name', 'email', 'phone', 'role', 'password']],
-    'store patient' => ['App\Http\Requests\Patients\StorePatientRequest', ['nik', 'name', 'email', 'birth_place', 'birth_date', 'address', 'age', 'gender']],
-    'update patient' => ['App\Http\Requests\Patients\UpdatePatientRequest', ['name', 'email', 'birth_place', 'birth_date', 'address', 'age', 'gender']],
+    'store patient' => ['App\Http\Requests\Patients\StorePatientRequest', ['nik', 'name', 'email', 'phone', 'birth_place', 'birth_date', 'address', 'age', 'gender', 'return_to']],
+    'update patient' => ['App\Http\Requests\Patients\UpdatePatientRequest', ['name', 'email', 'phone', 'birth_place', 'birth_date', 'address', 'age', 'gender']],
     'store radiograph' => ['App\Http\Requests\Radiographs\StoreRadiographRequest', ['patient_nik', 'image']],
     'analyze radiograph' => ['App\Http\Requests\Radiographs\AnalyzeRadiographRequest', []],
-    'finalize radiograph' => ['App\Http\Requests\Radiographs\FinalizeRadiographRequest', ['detections']],
+    'finalize radiograph' => ['App\Http\Requests\Radiographs\FinalizeRadiographRequest', ['detections', 'result_image', 'detections.*.no_fdi', 'detections.*.abnormality', 'detections.*.analysis', 'detections.*.bbox', 'detections.*.bbox.*', 'detections.*.crop_image', 'detections.*.confidence', 'detections.*.is_active', 'detections.*.source']],
 ]);

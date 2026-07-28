@@ -1,4 +1,4 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     Database,
@@ -6,13 +6,14 @@ import {
     Mail,
     Save,
     ShieldCheck,
-    type LucideIcon,
+    UserRound,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import InputError from '@/components/input-error';
-import PatientFooter from '@/components/patient-footer';
 import PasswordInput from '@/components/password-input';
+import PatientFooter from '@/components/patient-footer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/profile';
@@ -166,6 +167,20 @@ function ProfileForm({
                 <>
                     <div className="grid gap-5 md:grid-cols-3">
                         <Field
+                            error={errors.name}
+                            icon={UserRound}
+                            label="Nama"
+                        >
+                            <Input
+                                id="name"
+                                name="name"
+                                autoComplete="name"
+                                className="h-12 rounded-[16px] border-white/80 bg-white/60 px-4 text-[#22304F] shadow-sm"
+                                defaultValue={user.name}
+                                required
+                            />
+                        </Field>
+                        <Field
                             error={errors.email}
                             icon={Mail}
                             label="Email Login"
@@ -190,13 +205,19 @@ function ProfileForm({
                     {mustVerifyEmail && user.email_verified_at === null && (
                         <div className="rounded-[18px] border border-amber-200/80 bg-amber-50/80 p-4 text-sm leading-6 text-amber-700">
                             Email Anda belum terverifikasi.{' '}
-                            <Link
-                                href={send()}
-                                as="button"
-                                className="font-black underline underline-offset-4"
-                            >
-                                Kirim ulang email verifikasi.
-                            </Link>
+                            <Form {...send.form()} className="mt-3">
+                                {({ processing }) => (
+                                    <button
+                                        className="font-black underline underline-offset-4 disabled:opacity-60"
+                                        disabled={processing}
+                                        type="submit"
+                                    >
+                                        {processing
+                                            ? 'Mengirim email verifikasi...'
+                                            : 'Kirim ulang email verifikasi.'}
+                                    </button>
+                                )}
+                            </Form>
                             {status === 'verification-link-sent' && (
                                 <div className="mt-2 font-black text-emerald-600">
                                     Link verifikasi baru sudah dikirim.

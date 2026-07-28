@@ -17,6 +17,7 @@ class RadiographService
     public function indexData(User $viewer): array
     {
         $radiographs = Radiograph::query()
+            ->when($viewer->role === 'pasien', fn ($query) => $query->where('patient_nik', $viewer->patient?->nik ?? '__none__'))
             ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'detections'])
             ->latest()
             ->get()
@@ -47,9 +48,13 @@ class RadiographService
      */
     public function detailData(string $radiograph, ?User $viewer = null): array
     {
-        $radiograph = $this->find($radiograph);
-        $canAnalyze = $viewer
+        $radiograph = $this->findForViewer($radiograph, $viewer);
+        $isFinalized = $radiograph->status === 'terverifikasi';
+        $canAnalyze = $viewer && ! $isFinalized
             ? in_array($viewer->role, ['admin', 'dokter', 'radiografer'], true)
+            : false;
+        $canFinalize = $viewer && ! $isFinalized
+            ? in_array($viewer->role, ['admin', 'dokter'], true)
             : false;
 
         return [
@@ -73,7 +78,7 @@ class RadiographService
                 ->values(),
             'permissions' => [
                 'analyze' => $canAnalyze,
-                'finalize' => $canAnalyze,
+                'finalize' => $canFinalize,
             ],
         ];
     }
@@ -95,6 +100,7 @@ class RadiographService
     public function historyIndexData(User $viewer): array
     {
         $radiographs = Radiograph::query()
+            ->when($viewer->role === 'pasien', fn ($query) => $query->where('patient_nik', $viewer->patient?->nik ?? '__none__'))
             ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'detections'])
             ->withCount('detections')
             ->latest()
@@ -180,6 +186,14 @@ class RadiographService
     public function find(string $radiograph): Radiograph
     {
         return Radiograph::query()
+            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name'])
+            ->findOrFail($radiograph);
+    }
+
+    private function findForViewer(string $radiograph, ?User $viewer): Radiograph
+    {
+        return Radiograph::query()
+            ->when($viewer?->role === 'pasien', fn ($query) => $query->where('patient_nik', $viewer->patient?->nik ?? '__none__'))
             ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name'])
             ->findOrFail($radiograph);
     }

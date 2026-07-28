@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'patient_support_whatsapp' => env('PATIENT_SUPPORT_WHATSAPP'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

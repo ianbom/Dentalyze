@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class VerificationService
 {
@@ -61,6 +62,19 @@ class VerificationService
             ->filter(fn (array $item): bool => (bool) ($item['is_active'] ?? true))
             ->values();
 
+        if ($radiographModel->status === 'terverifikasi') {
+            if ($this->matchesFinalResult($radiographModel, $activeDetections, $data['result_image'] ?? null)) {
+                return [
+                    'radiograph' => $radiograph,
+                    'status' => 'terverifikasi',
+                    'detections' => $radiographModel->detections->toArray(),
+                    'already_finalized' => true,
+                ];
+            }
+
+            throw new ConflictHttpException(__('Hasil radiograf sudah difinalisasi dan tidak dapat diubah.'));
+        }
+
         if ($activeDetections->isEmpty()) {
             throw ValidationException::withMessages([
                 'detections' => __('Jalankan deteksi atau tambahkan odontogram manual sebelum menyimpan hasil final.'),
@@ -96,5 +110,26 @@ class VerificationService
             'status' => 'terverifikasi',
             'detections' => $data['detections'] ?? [],
         ];
+    }
+
+    private function matchesFinalResult(Radiograph $radiograph, $submitted, ?string $resultImage): bool
+    {
+        $normalize = fn ($items): array => collect($items)
+            ->filter(fn ($item): bool => (bool) data_get($item, 'is_active', true))
+            ->map(fn ($item): array => [
+                'no_fdi' => (string) data_get($item, 'no_fdi'),
+                'abnormality' => (string) data_get($item, 'abnormality'),
+                'analysis' => data_get($item, 'analysis'),
+                'bbox' => data_get($item, 'bbox'),
+                'crop_image' => data_get($item, 'crop_image'),
+                'confidence' => data_get($item, 'confidence') === null ? null : (float) data_get($item, 'confidence'),
+                'source' => (string) data_get($item, 'source', 'manual'),
+            ])
+            ->sortBy('no_fdi')
+            ->values()
+            ->all();
+
+        return $normalize($submitted) === $normalize($radiograph->detections)
+            && ($resultImage ?? $radiograph->result_image) === $radiograph->result_image;
     }
 }

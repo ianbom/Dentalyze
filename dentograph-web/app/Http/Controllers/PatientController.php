@@ -42,6 +42,8 @@ class PatientController extends Controller
 
     public function show(Request $request, string $patient, PatientService $service): Response
     {
+        abort_unless($this->canViewPatient($request, $patient), 403);
+
         return Inertia::render('patients/show', $service->detailData($patient, $request->user()));
     }
 
@@ -76,6 +78,16 @@ class PatientController extends Controller
 
     public function history(string $patient, PatientService $service): Response
     {
+        abort_unless($this->canViewPatient(request(), $patient), 403);
+
         return Inertia::render('patients/history', $service->historyData($patient));
+    }
+
+    private function canViewPatient(Request $request, string $patient): bool
+    {
+        $user = $request->user();
+
+        return $user?->role !== 'pasien'
+            || $user->patient?->nik === $patient;
     }
 }

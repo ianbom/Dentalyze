@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import {
     BookOpen,
     Clock3,
@@ -6,6 +7,7 @@ import {
     MessageCircleMore,
     PhoneCall,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import NewsletterForm from '@/components/newsletter-form';
 
 export default function PatientFooter({
@@ -13,6 +15,17 @@ export default function PatientFooter({
 }: {
     className?: string;
 }) {
+    const { support } = usePage().props as {
+        support?: { whatsapp?: string | null };
+    };
+    const whatsapp = support?.whatsapp?.replace(/\D/g, '') ?? '';
+    const whatsappHref = whatsapp ? 'https://wa.me/' + whatsapp : null;
+    const socialLinks: Array<[LucideIcon, string | null]> = [
+        [BookOpen, '#top'],
+        [MessageCircleMore, whatsappHref],
+        [PhoneCall, whatsappHref],
+    ];
+
     return (
         <footer
             id="contact"
@@ -47,21 +60,36 @@ export default function PatientFooter({
                         </p>
 
                         <div className="mt-8 flex items-center gap-4">
-                            {[
-                                [BookOpen, '#top'],
-                                [MessageCircleMore, 'https://wa.me/6281336730560?text=Halo%20Dentalyze%2C%20saya%20ingin%20berkonsultasi.'],
-                                [PhoneCall, 'https://wa.me/6281336730560?text=Halo%20Dentalyze%2C%20mohon%20hubungi%20saya.'],
-                            ].map(([Icon, href], index) => (
+                            {socialLinks.map(([Icon, href], index) =>
+                                href ? (
                                     <a
                                         href={href as string}
                                         className="group flex h-11 w-11 items-center justify-center rounded-[15px] border border-white/70 bg-white/45 text-[#0878e8] shadow-[0_12px_25px_rgba(19,184,255,0.08)] backdrop-blur-md transition-all duration-200 hover:-translate-y-1 hover:bg-[#0878e8] hover:text-white"
                                         key={index}
-                                        rel={String(href).startsWith('http') ? 'noreferrer' : undefined}
-                                        target={String(href).startsWith('http') ? '_blank' : undefined}
+                                        rel={
+                                            String(href).startsWith('http')
+                                                ? 'noreferrer'
+                                                : undefined
+                                        }
+                                        target={
+                                            String(href).startsWith('http')
+                                                ? '_blank'
+                                                : undefined
+                                        }
                                     >
                                         <Icon size={18} strokeWidth={2.1} />
                                     </a>
-                                ))}
+                                ) : (
+                                    <span
+                                        aria-disabled="true"
+                                        aria-label="Kontak WhatsApp belum tersedia"
+                                        className="flex h-11 w-11 cursor-not-allowed items-center justify-center rounded-[15px] border border-white/70 bg-white/35 text-[#9ea6b6] opacity-60"
+                                        key={index}
+                                    >
+                                        <Icon size={18} strokeWidth={2.1} />
+                                    </span>
+                                ),
+                            )}
                         </div>
                     </div>
 

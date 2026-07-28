@@ -32,7 +32,7 @@ class UpdatePatientRequest extends FormRequest
             ],
             'phone' => ['nullable', 'digits_between:11,12'],
             'birth_place' => ['required', 'string', 'max:255'],
-            'birth_date' => ['required', 'date'],
+            'birth_date' => ['required', 'date', 'before_or_equal:today'],
             'address' => ['required', 'string', 'max:1000'],
             'age' => ['required', 'integer', 'min:0', 'max:130'],
             'gender' => ['required', Rule::in(['male', 'female'])],

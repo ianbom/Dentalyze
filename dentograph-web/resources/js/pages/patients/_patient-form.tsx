@@ -188,7 +188,14 @@ export default function PatientForm({ mode, patient }: PatientFormProps) {
                             className={inputClass}
                             inputMode="numeric"
                             maxLength={12}
-                            onChange={(event) => setData('phone', event.target.value.replace(/\D/g, '').slice(0, 12))}
+                            onChange={(event) =>
+                                setData(
+                                    'phone',
+                                    event.target.value
+                                        .replace(/\D/g, '')
+                                        .slice(0, 12),
+                                )
+                            }
                             placeholder="11–12 digit nomor telepon"
                             value={data.phone}
                         />
@@ -199,12 +206,13 @@ export default function PatientForm({ mode, patient }: PatientFormProps) {
                         icon={MapPin}
                         label="Tempat Lahir"
                     >
-                        <ThemedDateInput
+                        <input
                             className={inputClass}
                             onChange={(event) =>
                                 setData('birth_place', event.target.value)
                             }
                             placeholder="Kota kelahiran"
+                            type="text"
                             value={data.birth_place}
                         />
                     </Field>
@@ -214,8 +222,9 @@ export default function PatientForm({ mode, patient }: PatientFormProps) {
                         icon={CalendarDays}
                         label="Tanggal Lahir"
                     >
-                        <input
+                        <ThemedDateInput
                             className={inputClass}
+                            max={new Date().toISOString().slice(0, 10)}
                             onChange={(event) =>
                                 updateBirthDate(event.target.value)
                             }
@@ -304,13 +313,16 @@ function Field({
     children: ReactNode;
     className?: string;
     error?: string;
-    icon: ComponentType<{ size?: number }>;
+    icon: ComponentType<{ className?: string; size?: number }>;
     label: string;
 }) {
     return (
         <label className={`space-y-2 ${className}`}>
             <span className="flex items-center gap-2">
-                <Icon size={14} />
+                <Icon
+                    className={error ? 'text-rose-500' : 'text-[#9ea6b6]'}
+                    size={14}
+                />
                 <span className={labelClass}>{label}</span>
             </span>
             {children}

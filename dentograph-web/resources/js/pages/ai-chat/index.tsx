@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { Bot, SendHorizontal, Sparkles, UserRound } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useMemo, useState } from 'react';
 
 type Message = {
     id?: number;

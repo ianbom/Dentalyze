@@ -13,11 +13,14 @@ class DoctorController extends Controller
 {
     public function index(StaffUserService $service): Response
     {
+        $this->ensureAdmin();
+
         return Inertia::render('doctors/index', $service->indexData('dokter'));
     }
 
     public function store(StoreStaffRequest $request, StaffUserService $service): RedirectResponse
     {
+        $this->ensureAdmin();
         $service->create($request->validated(), 'dokter');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Doctor created.')]);
@@ -27,6 +30,7 @@ class DoctorController extends Controller
 
     public function update(UpdateStaffRequest $request, string $doctor, StaffUserService $service): RedirectResponse
     {
+        $this->ensureAdmin();
         $service->update($doctor, $request->validated(), 'dokter');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Doctor updated.')]);
@@ -36,10 +40,16 @@ class DoctorController extends Controller
 
     public function destroy(string $doctor, StaffUserService $service): RedirectResponse
     {
+        $this->ensureAdmin();
         $service->delete($doctor, 'dokter');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Doctor deleted.')]);
 
         return to_route('doctors.index');
+    }
+
+    private function ensureAdmin(): void
+    {
+        abort_unless(request()->user()?->role === 'admin', 403);
     }
 }

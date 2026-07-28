@@ -14,7 +14,6 @@ import ListPagination, {
     getPageItems,
     getTotalPages,
 } from '@/components/list-pagination';
-import ThemedDateInput from '@/components/themed-date-input';
 import { cn } from '@/lib/utils';
 import patientRoutes from '@/routes/patients';
 import radiographs from '@/routes/radiographs';
@@ -202,9 +201,7 @@ export default function DetectionIndex({
                     )}
                 >
                     {permissions.create && (
-                        <section
-                            className="rounded-[30px] border border-white/70 bg-white/35 p-6 shadow-[0_24px_55px_rgba(19,184,255,0.1)] backdrop-blur-md"
-                        >
+                        <section className="rounded-[30px] border border-white/70 bg-white/35 p-6 shadow-[0_24px_55px_rgba(19,184,255,0.1)] backdrop-blur-md">
                             <p className="text-[11px] font-black tracking-[0.42em] text-[#49ddd7] uppercase">
                                 DETEKSI PENYAKIT
                             </p>
@@ -243,16 +240,20 @@ export default function DetectionIndex({
                                             error={patientErrors.nik}
                                             label="NIK"
                                         >
-                                            <ThemedDateInput
+                                            <input
                                                 className="h-12 w-full rounded-[14px] border border-white/70 bg-white/45 px-4 text-sm text-[#22304F] shadow-sm backdrop-blur-md outline-none"
+                                                inputMode="numeric"
                                                 maxLength={16}
                                                 onChange={(event) =>
                                                     setPatientData(
                                                         'nik',
-                                                        event.target.value,
+                                                        event.target.value
+                                                            .replace(/\D/g, '')
+                                                            .slice(0, 16),
                                                     )
                                                 }
                                                 placeholder="16 digit NIK"
+                                                type="text"
                                                 value={patientData.nik}
                                             />
                                         </Field>
@@ -278,11 +279,15 @@ export default function DetectionIndex({
                                         >
                                             <input
                                                 className="h-12 w-full rounded-[14px] border border-white/70 bg-white/45 px-4 text-sm text-[#22304F] shadow-sm backdrop-blur-md outline-none"
+                                                max={new Date()
+                                                    .toISOString()
+                                                    .slice(0, 10)}
                                                 onChange={(event) =>
                                                     updateBirthDate(
                                                         event.target.value,
                                                     )
                                                 }
+                                                type="date"
                                                 value={patientData.birth_date}
                                             />
                                         </Field>
@@ -326,15 +331,14 @@ export default function DetectionIndex({
                                         >
                                             <input
                                                 className="h-12 w-full rounded-[14px] border border-white/70 bg-white/45 px-4 text-sm text-[#22304F] shadow-sm backdrop-blur-md outline-none"
-                                                inputMode="numeric"
-                                                maxLength={12}
                                                 onChange={(event) =>
                                                     setPatientData(
                                                         'birth_place',
-                                                        event.target.value.replace(/\D/g, '').slice(0, 12),
+                                                        event.target.value,
                                                     )
                                                 }
                                                 placeholder="Kota lahir"
+                                                type="text"
                                                 value={patientData.birth_place}
                                             />
                                         </Field>
@@ -347,9 +351,13 @@ export default function DetectionIndex({
                                                 onChange={(event) =>
                                                     setPatientData(
                                                         'phone',
-                                                        event.target.value,
+                                                        event.target.value
+                                                            .replace(/\D/g, '')
+                                                            .slice(0, 12),
                                                     )
                                                 }
+                                                inputMode="numeric"
+                                                maxLength={12}
                                                 placeholder="11–12 digit nomor telepon"
                                                 value={patientData.phone}
                                             />
@@ -510,7 +518,10 @@ export default function DetectionIndex({
                                             <p className="mt-2 rounded-[12px] bg-white/55 px-3 py-2 text-xs font-bold text-[#526184] shadow-[0_8px_18px_rgba(19,184,255,0.08)]">
                                                 Gigi hilang / tidak terdeteksi:{' '}
                                                 <span className="text-[#0878e8]">
-                                                    {item.status === 'menunggu' ? '-' : (item.missing_teeth_count ?? '-')}
+                                                    {item.status === 'menunggu'
+                                                        ? '-'
+                                                        : (item.missing_teeth_count ??
+                                                          '-')}
                                                 </span>
                                             </p>
                                         </div>
@@ -560,18 +571,21 @@ export default function DetectionIndex({
                                                 <Play size={16} />
                                             </button>
                                         )}
-                                        {permissions.delete && item.can_delete && (
-                                            <button
-                                                className="grid size-10 place-items-center rounded-[13px] border border-rose-100/80 bg-rose-50/75 text-rose-500 shadow-[0_12px_28px_rgba(244,63,94,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-rose-100/80"
-                                                onClick={() =>
-                                                    setDeletingId(item.id_radiograph)
-                                                }
-                                                type="button"
-                                                title="Hapus radiograf dan hasil deteksi"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        )}
+                                        {permissions.delete &&
+                                            item.can_delete && (
+                                                <button
+                                                    className="grid size-10 place-items-center rounded-[13px] border border-rose-100/80 bg-rose-50/75 text-rose-500 shadow-[0_12px_28px_rgba(244,63,94,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-rose-100/80"
+                                                    onClick={() =>
+                                                        setDeletingId(
+                                                            item.id_radiograph,
+                                                        )
+                                                    }
+                                                    type="button"
+                                                    title="Hapus radiograf dan hasil deteksi"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
                                     </div>
                                 </article>
                             ))}
@@ -587,7 +601,13 @@ export default function DetectionIndex({
                         )}
                     </section>
                 </section>
-                <ConfirmDeleteDialog description="Radiograf dan seluruh hasil deteksinya akan dihapus permanen." onConfirm={() => deletingId && deleteRadiograph(deletingId)} onOpenChange={(open) => !open && setDeletingId(null)} open={deletingId !== null} title="Hapus radiograf?" />
+                <ConfirmDeleteDialog
+                    description="Radiograf dan seluruh hasil deteksinya akan dihapus permanen."
+                    onConfirm={() => deletingId && deleteRadiograph(deletingId)}
+                    onOpenChange={(open) => !open && setDeletingId(null)}
+                    open={deletingId !== null}
+                    title="Hapus radiograf?"
+                />
             </div>
         </>
     );

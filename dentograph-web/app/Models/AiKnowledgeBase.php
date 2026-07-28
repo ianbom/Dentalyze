@@ -16,10 +16,18 @@ class AiKnowledgeBase extends Model
         'status',
     ];
 
-    // protected function casts(): array
-    // {
-    //     return [
-    //         'embedding' => 'array',
-    //     ];
-    // }
+    public function getEmbeddingAttribute(mixed $value): ?array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        $embedding = json_decode($value, true);
+
+        return is_array($embedding) ? $embedding : null;
+    }
 }

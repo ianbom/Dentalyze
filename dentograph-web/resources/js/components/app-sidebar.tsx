@@ -126,10 +126,17 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const role = (usePage().props as { auth?: { user?: { role?: string } } }).auth?.user?.role;
-    const visibleItems = role === 'dokter'
-        ? mainNavItems.filter((item) => item.title !== 'Radiographs' && item.title !== 'Users' && item.title !== 'Knowledge Base')
-        : mainNavItems;
+    const role = (usePage().props as { auth?: { user?: { role?: string } } })
+        .auth?.user?.role;
+    const visibleItems =
+        role === 'dokter'
+            ? mainNavItems.filter(
+                  (item) =>
+                      item.title !== 'Radiographs' &&
+                      item.title !== 'Users' &&
+                      item.title !== 'Knowledge Base',
+              )
+            : mainNavItems;
 
     return (
         <Sidebar

@@ -12,9 +12,13 @@ import {
     Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import detection from '@/routes/detection';
+import doctors from '@/routes/doctors';
 import patients from '@/routes/patients';
 import { edit as editProfile } from '@/routes/profile';
+import radiographers from '@/routes/radiographers';
 import radiographs from '@/routes/radiographs';
+import * as radiographHistory from '@/routes/radiographs/history';
 
 type SeriesPoint = { label: string; value: number };
 type ActivityUser = {
@@ -64,15 +68,22 @@ export default function AdminDashboard({
 }: Props) {
     const [range, setRange] = useState<'weekly' | 'monthly'>('weekly');
     const [liveNotifications, setLiveNotifications] = useState(notifications);
-    const [notificationCount, setNotificationCount] = useState(stats.pending_verifications);
+    const [notificationCount, setNotificationCount] = useState(
+        stats.pending_verifications,
+    );
     const chartData = charts[range] ?? [];
 
     useEffect(() => {
         const refresh = async () => {
-            const response = await fetch('/dashboard/notifications', { headers: { Accept: 'application/json' } });
+            const response = await fetch('/dashboard/notifications', {
+                headers: { Accept: 'application/json' },
+            });
 
             if (response.ok) {
-                const payload = await response.json() as { count: number; notifications: Notification[] };
+                const payload = (await response.json()) as {
+                    count: number;
+                    notifications: Notification[];
+                };
                 setLiveNotifications(payload.notifications);
                 setNotificationCount(payload.count);
             }
@@ -93,21 +104,25 @@ export default function AdminDashboard({
             label: 'Doctors',
             value: stats.total_doctors,
             icon: Stethoscope,
+            href: doctors.index(),
         },
         {
-            label: 'Radiografer',
+            label: 'Radiographer',
             value: stats.total_radiographers,
             icon: Camera,
+            href: radiographers.index(),
         },
         {
             label: 'Radiographs',
             value: stats.total_radiographs,
             icon: Database,
+            href: radiographHistory.index(),
         },
         {
             label: 'Detections',
             value: stats.total_detections,
             icon: Activity,
+            href: detection.index(),
         },
     ];
     const leftCards = cards.slice(0, 3);
@@ -178,7 +193,10 @@ export default function AdminDashboard({
                 </div>
 
                 <aside className="space-y-5">
-                    <NotificationCard count={notificationCount} notifications={liveNotifications} />
+                    <NotificationCard
+                        count={notificationCount}
+                        notifications={liveNotifications}
+                    />
                     <ActivityList
                         items={activities.doctors}
                         kind="doctor"
@@ -202,7 +220,7 @@ function StatCard({
         label: string;
         value: number;
         icon: typeof Users;
-        href?: ReturnType<typeof patients.index>;
+        href: ReturnType<typeof patients.index>;
     };
 }) {
     const Icon = card.icon;
@@ -222,27 +240,17 @@ function StatCard({
         </>
     );
 
-    if (card.href) {
-        return (
-            <Link
-                className="group relative min-h-[124px] overflow-hidden rounded-[28px] border border-white/75 bg-white/48 p-6 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white/65"
-                href={card.href}
-            >
-                <div className="absolute -top-16 -right-16 h-32 w-32 rounded-full bg-[#86d8ff]/18 blur-3xl transition group-hover:scale-125" />
-                <div className="relative z-10 flex items-center gap-4">
-                    {content}
-                </div>
-            </Link>
-        );
-    }
-
     return (
-        <article className="relative min-h-[124px] overflow-hidden rounded-[28px] border border-white/75 bg-white/48 p-6 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md">
-            <div className="absolute -top-16 -right-16 h-32 w-32 rounded-full bg-[#86d8ff]/18 blur-3xl" />
+        <Link
+            aria-label={`Lihat ${card.label}`}
+            className="group relative min-h-[124px] cursor-pointer overflow-hidden rounded-[28px] border border-white/75 bg-white/48 p-6 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:bg-white/65 focus-visible:ring-2 focus-visible:ring-[#13b8ff] focus-visible:ring-offset-2 focus-visible:outline-none"
+            href={card.href}
+        >
+            <div className="absolute -top-16 -right-16 h-32 w-32 rounded-full bg-[#86d8ff]/18 blur-3xl transition group-hover:scale-125" />
             <div className="relative z-10 flex items-center gap-4">
                 {content}
             </div>
-        </article>
+        </Link>
     );
 }
 
@@ -357,7 +365,11 @@ function NotificationCard({
                     <Bell size={16} />
                 </span>
                 Notifikasi
-                {count > 0 && <span className="grid min-w-6 place-items-center rounded-full bg-rose-500 px-1.5 py-1 text-[10px] text-white">{count}</span>}
+                {count > 0 && (
+                    <span className="grid min-w-6 place-items-center rounded-full bg-rose-500 px-1.5 py-1 text-[10px] text-white">
+                        {count}
+                    </span>
+                )}
             </h2>
             <div className="mt-5 space-y-3">
                 {notifications.length === 0 && (

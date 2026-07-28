@@ -125,8 +125,17 @@ export default function StaffDirectory({
     function openCreate() {
         setEditingUser(null);
         reset();
-        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        window.setTimeout(() => formRef.current?.querySelector<HTMLInputElement>('input')?.focus(), 350);
+        formRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+        window.setTimeout(
+            () =>
+                formRef.current
+                    ?.querySelector<HTMLInputElement>('input')
+                    ?.focus(),
+            350,
+        );
     }
 
     function openEdit(user: StaffUser) {
@@ -240,7 +249,14 @@ export default function StaffDirectory({
                                     className={inputClass}
                                     inputMode="numeric"
                                     maxLength={12}
-                                    onChange={(event) => setData('phone', event.target.value.replace(/\D/g, '').slice(0, 12))}
+                                    onChange={(event) =>
+                                        setData(
+                                            'phone',
+                                            event.target.value
+                                                .replace(/\D/g, '')
+                                                .slice(0, 12),
+                                        )
+                                    }
                                     placeholder="11–12 digit nomor telepon"
                                     value={data.phone}
                                 />
