@@ -1,0 +1,7 @@
+*best22.pt*
+*best_kelainangigi.pth*
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+

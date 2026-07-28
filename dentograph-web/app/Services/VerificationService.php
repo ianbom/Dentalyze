@@ -1,0 +1,100 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Radiograph;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+
+class VerificationService
+{
+    /**
+     * @return array<string, mixed>
+     */
+    public function taskData(User $doctor): array
+    {
+        $canVerify = in_array($doctor->role, ['admin', 'dokter'], true);
+        $tasks = collect();
+
+        if ($canVerify) {
+            $tasks = Radiograph::query()
+                ->with(['patient.user:id,name,email,phone', 'radiografer:id,name'])
+                ->where('status', 'menunggu')
+                ->latest()
+                ->get()
+                ->map(fn (Radiograph $radiograph): array => [
+                    'id_radiograph' => $radiograph->id_radiograph,
+                    'patient_name' => $radiograph->patient?->user?->name ?? $radiograph->patient_nik,
+                    'patient_nik' => $radiograph->patient_nik,
+                    'radiographer_name' => $radiograph->radiografer?->name,
+                    'image_url' => Storage::url($radiograph->image),
+                    'status' => 'menunggu',
+                    'created_at' => optional($radiograph->created_at)->format('Y-m-d'),
+                ])
+                ->values();
+        }
+
+        return [
+            'tasks' => $tasks,
+            'filters' => [
+                'total' => $tasks->count(),
+            ],
+            'permissions' => [
+                'verify' => $canVerify,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public function finalize(string $radiograph, array $data, User $doctor): array
+    {
+        $radiographModel = Radiograph::query()
+            ->with('detections')
+            ->findOrFail($radiograph);
+
+        $activeDetections = collect($data['detections'] ?? [])
+            ->filter(fn (array $item): bool => (bool) ($item['is_active'] ?? true))
+            ->values();
+
+        if ($activeDetections->isEmpty()) {
+            throw ValidationException::withMessages([
+                'detections' => __('Jalankan deteksi atau tambahkan odontogram manual sebelum menyimpan hasil final.'),
+            ]);
+        }
+
+        DB::transaction(function () use ($activeDetections, $data, $doctor, $radiographModel): void {
+            $radiographModel->detections()->delete();
+
+            foreach ($activeDetections as $item) {
+                $radiographModel->detections()->create([
+                    'id_radiograph' => $radiographModel->id_radiograph,
+                    'no_fdi' => $item['no_fdi'],
+                    'abnormality' => $item['abnormality'],
+                    'analysis' => $item['analysis'] ?? null,
+                    'bbox' => $item['bbox'] ?? null,
+                    'crop_image' => $item['crop_image'] ?? null,
+                    'confidence' => $item['confidence'] ?? null,
+                    'is_active' => true,
+                    'source' => $item['source'] ?? 'manual',
+                ]);
+            }
+
+            $radiographModel->update([
+                'id_dokter' => $doctor->id,
+                'result_image' => $data['result_image'] ?? $radiographModel->result_image,
+                'status' => 'terverifikasi',
+            ]);
+        });
+
+        return [
+            'radiograph' => $radiograph,
+            'status' => 'terverifikasi',
+            'detections' => $data['detections'] ?? [],
+        ];
+    }
+}
