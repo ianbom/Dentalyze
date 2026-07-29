@@ -108,7 +108,7 @@ class PatientService
     {
         $data['age'] = Carbon::parse($data['birth_date'])->age;
 
-        $user = DB::transaction(function () use ($data): User {
+        DB::transaction(function () use ($data): void {
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'] ?? null,
@@ -126,13 +126,7 @@ class PatientService
                 'age' => $data['age'],
                 'gender' => $data['gender'],
             ]);
-
-            return $user;
         });
-
-        if (filled($user->email)) {
-            $user->sendEmailVerificationNotification();
-        }
 
         return (string) $data['nik'];
     }

@@ -8,7 +8,7 @@ import {
     UserPlus,
     X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDeleteDialog from '@/components/confirm-delete-dialog';
 import ListPagination, {
     getPageItems,
@@ -52,6 +52,58 @@ type PatientFormData = {
     return_to: 'radiographs.index';
 };
 
+const MAX_RADIOGRAPH_SIZE = 10 * 1024 * 1024;
+const MAX_GRAYSCALE_SAMPLES = 10000;
+const GRAYSCALE_CHANNEL_TOLERANCE = 12;
+const MAX_COLORED_SAMPLE_RATIO = 0.01;
+const RADIOGRAPH_MIME_TYPES = ['image/jpeg', 'image/png'];
+
+async function isNearGrayscale(file: File): Promise<boolean> {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(
+        1,
+        Math.sqrt(MAX_GRAYSCALE_SAMPLES / (bitmap.width * bitmap.height)),
+    );
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.floor(bitmap.height * scale));
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+
+    try {
+        if (!context) {
+            throw new Error('Canvas tidak tersedia.');
+        }
+
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const pixels = context.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+        ).data;
+        let coloredSamples = 0;
+        const sampleCount = pixels.length / 4;
+
+        for (let index = 0; index < pixels.length; index += 4) {
+            const red = pixels[index];
+            const green = pixels[index + 1];
+            const blue = pixels[index + 2];
+
+            if (
+                Math.max(red, green, blue) - Math.min(red, green, blue) >
+                GRAYSCALE_CHANNEL_TOLERANCE
+            ) {
+                coloredSamples++;
+            }
+        }
+
+        // ponytail: Validasi hanya near-grayscale; tambah klasifikasi AI jika konten radiograf harus dibuktikan.
+        return coloredSamples / sampleCount <= MAX_COLORED_SAMPLE_RATIO;
+    } finally {
+        bitmap.close();
+    }
+}
+
 export default function DetectionIndex({
     filters,
     patients,
@@ -62,8 +114,11 @@ export default function DetectionIndex({
     const [analyzingId, setAnalyzingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showQuickPatient, setShowQuickPatient] = useState(false);
+    const [validatingImage, setValidatingImage] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const imageValidationId = useRef(0);
     const {
         data,
         setData,
@@ -72,6 +127,8 @@ export default function DetectionIndex({
         progress,
         errors,
         reset,
+        setError,
+        clearErrors,
     } = useForm<{
         patient_nik: string;
         image: File | null;
@@ -134,10 +191,101 @@ export default function DetectionIndex({
 
     function submit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
+
+        if (validatingImage) {
+            return;
+        }
+
+        if (!data.image) {
+            setError('image', 'Gambar radiograf wajib dipilih.');
+
+            return;
+        }
+
         uploadRadiograph(radiographs.store.url(), {
             forceFormData: true,
-            onSuccess: () => reset(),
+            onSuccess: () => {
+                reset();
+
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+            },
         });
+    }
+
+    async function validateImage(file: File | null) {
+        const validationId = ++imageValidationId.current;
+        clearErrors('image');
+        setData('image', null);
+        setValidatingImage(false);
+
+        if (!file) {
+            return;
+        }
+
+        if (!RADIOGRAPH_MIME_TYPES.includes(file.type)) {
+            setError(
+                'image',
+                'Gambar radiograf harus berformat JPG, JPEG, atau PNG.',
+            );
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+
+            return;
+        }
+
+        if (file.size > MAX_RADIOGRAPH_SIZE) {
+            setError('image', 'Ukuran gambar radiograf maksimal 10 MB.');
+
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+
+            return;
+        }
+
+        setValidatingImage(true);
+
+        try {
+            const grayscale = await isNearGrayscale(file);
+
+            if (validationId !== imageValidationId.current) {
+                return;
+            }
+
+            if (!grayscale) {
+                setError(
+                    'image',
+                    'Radiograf harus berupa gambar hitam putih atau grayscale.',
+                );
+
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+
+                return;
+            }
+
+            setData('image', file);
+        } catch {
+            if (validationId === imageValidationId.current) {
+                setError(
+                    'image',
+                    'File radiograf harus berupa gambar yang valid dan dapat dibaca.',
+                );
+
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+            }
+        } finally {
+            if (validationId === imageValidationId.current) {
+                setValidatingImage(false);
+            }
+        }
     }
 
     function submitQuickPatient(event: React.FormEvent<HTMLFormElement>) {
@@ -440,25 +588,37 @@ export default function DetectionIndex({
                                     label="Gambar Radiograf"
                                 >
                                     <input
+                                        accept="image/jpeg,image/png"
+                                        aria-busy={validatingImage}
                                         className="block w-full rounded-[14px] border border-white/70 bg-white/45 px-4 py-3 text-sm text-[#22304F] shadow-sm backdrop-blur-md file:mr-4 file:rounded-[10px] file:border-0 file:bg-[#13b8ff] file:px-4 file:py-2 file:text-xs file:font-black file:text-white"
                                         onChange={(event) =>
-                                            setData(
-                                                'image',
+                                            void validateImage(
                                                 event.target.files?.[0] ?? null,
                                             )
                                         }
+                                        ref={fileInputRef}
                                         type="file"
                                     />
+                                    {validatingImage && (
+                                        <p
+                                            className="mt-2 text-xs font-semibold text-[#0878e8]"
+                                            role="status"
+                                        >
+                                            Memeriksa gambar radiograf...
+                                        </p>
+                                    )}
                                 </Field>
                                 <button
                                     className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#13b8ff_0%,#0878e8_100%)] px-6 text-xs font-black tracking-wider text-white uppercase shadow-[0_12px_28px_rgba(8,120,232,0.22)] disabled:opacity-70"
-                                    disabled={processing}
+                                    disabled={processing || validatingImage}
                                     type="submit"
                                 >
                                     <ImagePlus size={16} />
-                                    {processing
-                                        ? `Mengunggah${progress?.percentage ? ` ${progress.percentage}%` : ''}`
-                                        : 'Upload Radiograf'}
+                                    {validatingImage
+                                        ? 'Memeriksa Gambar'
+                                        : processing
+                                          ? `Mengunggah${progress?.percentage ? ` ${progress.percentage}%` : ''}`
+                                          : 'Upload Radiograf'}
                                 </button>
                             </form>
                         </section>

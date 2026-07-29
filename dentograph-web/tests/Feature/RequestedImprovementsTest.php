@@ -4,8 +4,10 @@ use App\Mail\NewsletterWelcomeMail;
 use App\Models\Patient;
 use App\Models\Radiograph;
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 
 test('newsletter stores a unique subscriber and queues a thank you email', function () {
     Mail::fake();
@@ -46,6 +48,35 @@ test('phone validation accepts only eleven or twelve digits', function (string $
     ['0812345678901', false],
     ['08123abc789', false],
 ]);
+
+test('creating a patient does not send a verification email', function () {
+    Notification::fake();
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->post(route('patients.store'), [
+            'nik' => '9876543210987654',
+            'name' => 'Pasien Tanpa Email Otomatis',
+            'email' => 'no-auto-email@example.com',
+            'phone' => '081234567890',
+            'birth_place' => 'Denpasar',
+            'birth_date' => '2000-01-01',
+            'address' => 'Alamat',
+            'age' => 26,
+            'gender' => 'male',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $patientUser = User::query()
+        ->where('email', 'no-auto-email@example.com')
+        ->firstOrFail();
+
+    $this->assertDatabaseHas('patients', [
+        'nik' => '9876543210987654',
+        'user_id' => $patientUser->id,
+    ]);
+    Notification::assertNotSentTo($patientUser, VerifyEmail::class);
+});
 
 test('admin doctor and radiographer pass analyze authorization while patient does not', function (string $role, int $status) {
     $user = User::factory()->create(['role' => $role]);
