@@ -3,6 +3,18 @@ from pathlib import Path
 from app.core.config import BASE_DIR, Settings
 
 
+def test_default_llm_uses_local_ollama(monkeypatch):
+    monkeypatch.delenv("AI_LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("AI_LLM_MODEL", raising=False)
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+
+    settings = Settings()
+
+    assert settings.llm_provider == "ollama"
+    assert settings.ollama_base_url == "http://127.0.0.1:11434"
+    assert settings.ollama_chat_model == "llama3.1:8b-instruct-q8_0"
+
+
 def _env_keys(path: Path) -> list[str]:
     return [
         line.split("=", 1)[0]

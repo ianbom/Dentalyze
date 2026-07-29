@@ -44,7 +44,7 @@ class Settings:
     vit_model_path: Path = field(default_factory=lambda: _project_path("VIT_MODEL_PATH", "best_kelainangigi.pth"))
     confidence_yolo: float = field(default_factory=lambda: float(os.getenv("CONF_YOLO", "0.25")))
     nms_iou_threshold: float = field(default_factory=lambda: float(os.getenv("NMS_IOU_THRESHOLD", "0.3")))
-    ollama_base_url: str = field(default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11435"))
+    ollama_base_url: str = field(default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434"))
     ollama_chat_model: str = field(default_factory=lambda: os.getenv("OLLAMA_CHAT_MODEL", "llama3.1:8b-instruct-q8_0"))
     embedding_model: str = field(default_factory=lambda: os.getenv("EMBEDDING_MODEL", "bge-m3:567m"))
     embedding_dimensions: int = field(default_factory=lambda: int(os.getenv("EMBEDDING_DIMENSIONS", "1024")))
