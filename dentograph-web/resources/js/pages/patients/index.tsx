@@ -49,6 +49,8 @@ type PatientsIndexProps = {
     };
 };
 
+type GenderFilter = 'semua' | Patient['gender'];
+
 const genderLabels: Record<Patient['gender'], string> = {
     male: 'Laki-laki',
     female: 'Perempuan',
@@ -71,6 +73,13 @@ export default function PatientsIndex({
     filters,
     permissions,
 }: PatientsIndexProps) {
+    const params = new URLSearchParams(window.location.search);
+    const initialGender = params.get('gender') as GenderFilter | null;
+    const [gender, setGender] = useState<GenderFilter>(
+        initialGender && ['semua', 'male', 'female'].includes(initialGender)
+            ? initialGender
+            : 'semua',
+    );
     const [search, setSearch] = useState('');
     const [deletingPatient, setDeletingPatient] = useState<Patient | null>(
         null,
@@ -82,24 +91,26 @@ export default function PatientsIndex({
     const visiblePatients = useMemo(() => {
         const query = search.trim().toLowerCase();
 
-        if (!query) {
-            return patientRows;
-        }
+        return patientRows.filter((patient) => {
+            const matchesGender =
+                gender === 'semua' || patient.gender === gender;
+            const matchesSearch =
+                query.length === 0 ||
+                [
+                    patient.name,
+                    patient.nik,
+                    patient.email,
+                    patient.phone,
+                    patient.birth_place,
+                    patient.address,
+                    genderLabels[patient.gender],
+                ]
+                    .filter(Boolean)
+                    .some((value) => value?.toLowerCase().includes(query));
 
-        return patientRows.filter((patient) =>
-            [
-                patient.name,
-                patient.nik,
-                patient.email,
-                patient.phone,
-                patient.birth_place,
-                patient.address,
-                genderLabels[patient.gender],
-            ]
-                .filter(Boolean)
-                .some((value) => value?.toLowerCase().includes(query)),
-        );
-    }, [patientRows, search]);
+            return matchesGender && matchesSearch;
+        });
+    }, [gender, patientRows, search]);
 
     const totalPages = getTotalPages(visiblePatients.length, pageSize);
     const currentPage = Math.min(page, totalPages);
@@ -107,6 +118,27 @@ export default function PatientsIndex({
         () => getPageItems(visiblePatients, currentPage, pageSize),
         [currentPage, pageSize, visiblePatients],
     );
+
+    const genderCards = [
+        { label: 'Total Pasien', value: 'semua', count: filters.total },
+        { label: 'Pasien Laki-laki', value: 'male', count: filters.male },
+        { label: 'Pasien Perempuan', value: 'female', count: filters.female },
+    ] as const;
+
+    function changeGender(next: GenderFilter) {
+        setGender(next);
+        setPage(1);
+        router.visit(
+            patients.index.url({
+                query: next === 'semua' ? {} : { gender: next },
+            }),
+            {
+                replace: true,
+                preserveScroll: true,
+                preserveState: true,
+            },
+        );
+    }
 
     function deletePatient() {
         if (!deletingPatient) {
@@ -128,57 +160,67 @@ export default function PatientsIndex({
 
             <div className="space-y-6">
                 <section className="grid gap-4 md:grid-cols-3">
-                    <article className="group relative overflow-hidden rounded-[24px] border border-white/70 bg-white/35 p-5 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:bg-white/50">
-                        <img
-                            alt=""
-                            className="pointer-events-none absolute -right-20 -bottom-24 w-56 opacity-[0.08] transition duration-500 group-hover:scale-110 group-hover:opacity-[0.13]"
-                            src="/asset/images/gigi.png"
-                        />
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="relative z-10">
-                                <p className="text-[11px] font-black tracking-[0.28em] text-[#9ea6b6] uppercase">
-                                    Total Pasien
-                                </p>
-                                <strong className="mt-3 block text-[40px] leading-none font-black text-[#1c78ea]">
-                                    {filters.total}
-                                </strong>
-                            </div>
-                            <span className="relative z-10 grid size-13 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#13b8ff_0%,#0878e8_100%)] text-white shadow-[0_12px_28px_rgba(8,120,232,0.22)]">
-                                <Users size={21} />
-                            </span>
-                        </div>
-                    </article>
+                    {genderCards.map((card) => {
+                        const active = gender === card.value;
 
-                    <article className="group relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#20b9ff_0%,#0878e8_100%)] p-5 text-white shadow-[0_24px_55px_rgba(8,120,232,0.22)] transition-all duration-500 hover:-translate-y-1">
-                        <img
-                            alt=""
-                            className="pointer-events-none absolute -right-20 -bottom-24 w-56 opacity-[0.12] transition duration-500 group-hover:scale-110 group-hover:opacity-[0.18]"
-                            src="/asset/images/gigi.png"
-                        />
-                        <div className="absolute -top-16 -right-16 size-44 rounded-full bg-white/15 blur-3xl" />
-                        <p className="relative text-[11px] font-black tracking-[0.28em] text-white/75 uppercase">
-                            Pasien Laki-laki
-                        </p>
-                        <strong className="relative mt-3 block text-[40px] leading-none font-black">
-                            {filters.male}
-                        </strong>
-                    </article>
-
-                    <article className="group relative overflow-hidden rounded-[24px] border border-white/70 bg-white/40 p-5 shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:bg-white/55">
-                        <img
-                            alt=""
-                            className="pointer-events-none absolute -right-20 -bottom-24 w-56 opacity-[0.08] transition duration-500 group-hover:scale-110 group-hover:opacity-[0.13]"
-                            src="/asset/images/gigi.png"
-                        />
-                        <div className="relative z-10">
-                            <p className="text-[11px] font-black tracking-[0.28em] text-[#9ea6b6] uppercase">
-                                Pasien Perempuan
-                            </p>
-                            <strong className="mt-3 block text-[40px] leading-none font-black text-[#1c78ea]">
-                                {filters.female}
-                            </strong>
-                        </div>
-                    </article>
+                        return (
+                            <button
+                                aria-pressed={active}
+                                className={`group relative overflow-hidden rounded-[24px] border p-5 text-left shadow-[0_18px_45px_rgba(19,184,255,0.08)] backdrop-blur-md transition-all duration-500 hover:-translate-y-1 ${
+                                    active
+                                        ? 'border-transparent bg-[linear-gradient(135deg,#20b9ff_0%,#0878e8_100%)] text-white shadow-[0_24px_55px_rgba(8,120,232,0.22)]'
+                                        : 'border-white/70 bg-white/40 hover:bg-white/55'
+                                }`}
+                                key={card.value}
+                                onClick={() => changeGender(card.value)}
+                                type="button"
+                            >
+                                <img
+                                    alt=""
+                                    className={`pointer-events-none absolute -right-20 -bottom-24 w-56 transition duration-500 group-hover:scale-110 ${
+                                        active
+                                            ? 'opacity-[0.12] group-hover:opacity-[0.18]'
+                                            : 'opacity-[0.08] group-hover:opacity-[0.13]'
+                                    }`}
+                                    src="/asset/images/gigi.png"
+                                />
+                                {active && (
+                                    <div className="absolute -top-16 -right-16 size-44 rounded-full bg-white/15 blur-3xl" />
+                                )}
+                                <div className="relative z-10 flex items-center justify-between gap-4">
+                                    <div>
+                                        <p
+                                            className={`text-[11px] font-black tracking-[0.28em] uppercase ${
+                                                active
+                                                    ? 'text-white/75'
+                                                    : 'text-[#9ea6b6]'
+                                            }`}
+                                        >
+                                            {card.label}
+                                        </p>
+                                        <strong
+                                            className={`mt-3 block text-[40px] leading-none font-black ${
+                                                active
+                                                    ? 'text-white'
+                                                    : 'text-[#1c78ea]'
+                                            }`}
+                                        >
+                                            {card.count}
+                                        </strong>
+                                    </div>
+                                    <span
+                                        className={`grid size-13 place-items-center rounded-[16px] ${
+                                            active
+                                                ? 'bg-white/18 text-white'
+                                                : 'bg-[#DDF6FF] text-[#0d8ecf]'
+                                        }`}
+                                    >
+                                        <Users size={21} />
+                                    </span>
+                                </div>
+                            </button>
+                        );
+                    })}
                 </section>
 
                 <section className="overflow-hidden rounded-[30px] border border-white/70 bg-white/35 shadow-[0_24px_55px_rgba(19,184,255,0.1)] backdrop-blur-md">
