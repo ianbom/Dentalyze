@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Activity,
     BrainCircuit,
+    Building2,
     ClipboardCheck,
     FileText,
     LayoutGrid,
@@ -24,6 +25,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import faskes from '@/routes/faskes/index';
 import knowledge from '@/routes/knowledge';
 import patients from '@/routes/patients';
 import radiographs from '@/routes/radiographs';
@@ -31,7 +33,11 @@ import users from '@/routes/users';
 import verification from '@/routes/verification';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+type RoleNavItem = NavItem & {
+    roles?: string[];
+};
+
+const mainNavItems: RoleNavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
@@ -53,6 +59,12 @@ const mainNavItems: NavItem[] = [
                 icon: UserPlus,
             },
         ],
+    },
+    {
+        title: 'Faskes',
+        href: faskes.index(),
+        icon: Building2,
+        roles: ['admin'],
     },
     {
         title: 'Pasien',
@@ -128,15 +140,18 @@ const footerNavItems: NavItem[] = [
 export function AppSidebar() {
     const role = (usePage().props as { auth?: { user?: { role?: string } } })
         .auth?.user?.role;
+    const roleItems = mainNavItems.filter(
+        (item) => !item.roles || (role && item.roles.includes(role)),
+    );
     const visibleItems =
         role === 'dokter'
-            ? mainNavItems.filter(
+            ? roleItems.filter(
                   (item) =>
                       item.title !== 'Radiographs' &&
                       item.title !== 'Users' &&
                       item.title !== 'Knowledge Base',
               )
-            : mainNavItems;
+            : roleItems;
 
     return (
         <Sidebar

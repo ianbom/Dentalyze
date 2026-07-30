@@ -25,6 +25,8 @@ export type StaffUser = {
     email: string;
     phone: string | null;
     role: 'dokter' | 'radiografer';
+    faskes_id: number;
+    faskes_name: string | null;
     created_at: string | null;
 };
 
@@ -54,6 +56,7 @@ type StaffDirectoryProps = {
         delete: boolean;
     };
     users: StaffUser[];
+    faskesOptions: { id: number; name: string }[];
 };
 
 type StaffFormData = {
@@ -61,6 +64,7 @@ type StaffFormData = {
     email: string;
     phone: string;
     password: string;
+    faskes_id: string;
 };
 
 const inputClass =
@@ -84,6 +88,7 @@ export default function StaffDirectory({
     filters,
     permissions,
     users,
+    faskesOptions,
 }: StaffDirectoryProps) {
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState<StaffUser | null>(null);
@@ -99,6 +104,7 @@ export default function StaffDirectory({
             email: '',
             phone: '',
             password: '',
+            faskes_id: '',
         });
 
     const visibleUsers = useMemo(() => {
@@ -145,6 +151,7 @@ export default function StaffDirectory({
             email: user.email,
             phone: user.phone ?? '',
             password: '',
+            faskes_id: String(user.faskes_id),
         });
     }
 
@@ -221,6 +228,25 @@ export default function StaffDirectory({
                         </p>
 
                         <div className="mt-7 space-y-4">
+                            <Field error={errors.faskes_id} label="Faskes">
+                                <select
+                                    className={inputClass}
+                                    onChange={(event) =>
+                                        setData('faskes_id', event.target.value)
+                                    }
+                                    value={data.faskes_id}
+                                >
+                                    <option value="">Pilih faskes</option>
+                                    {faskesOptions.map((faskes) => (
+                                        <option
+                                            key={faskes.id}
+                                            value={faskes.id}
+                                        >
+                                            {faskes.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </Field>
                             <Field error={errors.name} label="Nama">
                                 <input
                                     className={inputClass}

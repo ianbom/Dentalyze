@@ -24,11 +24,15 @@ type Radiograph = {
     patient_name: string;
     patient_nik: string;
     doctor_name: string | null;
+    assigned_doctor_name: string | null;
     radiographer_name: string | null;
+    faskes_name: string | null;
+    review_faskes_name: string | null;
     image_url: string;
     status: string;
     missing_teeth_count?: number;
     can_delete?: boolean;
+    can_analyze?: boolean;
     created_at: string | null;
 };
 
@@ -176,8 +180,11 @@ export default function DetectionIndex({
                 item.patient_name,
                 item.patient_nik,
                 item.status,
+                item.faskes_name,
+                item.review_faskes_name,
+                item.assigned_doctor_name,
             ]
-                .filter(Boolean)
+                .filter((value): value is string => Boolean(value))
                 .some((value) => value.toLowerCase().includes(query)),
         );
     }, [rows, search]);
@@ -674,6 +681,20 @@ export default function DetectionIndex({
                                             <p className="mt-1 text-xs text-[#7B8BA7]">
                                                 {item.id_radiograph}
                                             </p>
+                                            <p className="mt-1 text-xs font-semibold text-[#526184]">
+                                                {item.faskes_name ?? '-'}
+                                                {item.review_faskes_name &&
+                                                item.review_faskes_name !==
+                                                    item.faskes_name
+                                                    ? ` → ${item.review_faskes_name}`
+                                                    : ''}
+                                            </p>
+                                            {item.assigned_doctor_name && (
+                                                <p className="mt-1 text-xs text-[#0878e8]">
+                                                    Dokter tujuan:{' '}
+                                                    {item.assigned_doctor_name}
+                                                </p>
+                                            )}
                                             <StatusBadge status={item.status} />
                                             <p className="mt-2 rounded-[12px] bg-white/55 px-3 py-2 text-xs font-bold text-[#526184] shadow-[0_8px_18px_rgba(19,184,255,0.08)]">
                                                 Gigi hilang / tidak terdeteksi:{' '}
@@ -696,41 +717,42 @@ export default function DetectionIndex({
                                         >
                                             <Activity size={16} />
                                         </Link>
-                                        {permissions.analyze && (
-                                            <button
-                                                className="grid size-10 place-items-center rounded-[13px] bg-[linear-gradient(135deg,#13b8ff_0%,#0878e8_100%)] text-white shadow-[0_12px_28px_rgba(8,120,232,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(8,120,232,0.28)] disabled:opacity-60"
-                                                disabled={
-                                                    analyzingId ===
-                                                    item.id_radiograph
-                                                }
-                                                onClick={() => {
-                                                    setAnalyzingId(
-                                                        item.id_radiograph,
-                                                    );
-                                                    router.post(
-                                                        radiographs.analyze.url(
+                                        {permissions.analyze &&
+                                            item.can_analyze && (
+                                                <button
+                                                    className="grid size-10 place-items-center rounded-[13px] bg-[linear-gradient(135deg,#13b8ff_0%,#0878e8_100%)] text-white shadow-[0_12px_28px_rgba(8,120,232,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(8,120,232,0.28)] disabled:opacity-60"
+                                                    disabled={
+                                                        analyzingId ===
+                                                        item.id_radiograph
+                                                    }
+                                                    onClick={() => {
+                                                        setAnalyzingId(
                                                             item.id_radiograph,
-                                                        ),
-                                                        {},
-                                                        {
-                                                            onFinish: () =>
-                                                                setAnalyzingId(
-                                                                    null,
-                                                                ),
-                                                        },
-                                                    );
-                                                }}
-                                                type="button"
-                                                title={
-                                                    analyzingId ===
-                                                    item.id_radiograph
-                                                        ? 'Menganalisis AI'
-                                                        : 'Mulai deteksi'
-                                                }
-                                            >
-                                                <Play size={16} />
-                                            </button>
-                                        )}
+                                                        );
+                                                        router.post(
+                                                            radiographs.analyze.url(
+                                                                item.id_radiograph,
+                                                            ),
+                                                            {},
+                                                            {
+                                                                onFinish: () =>
+                                                                    setAnalyzingId(
+                                                                        null,
+                                                                    ),
+                                                            },
+                                                        );
+                                                    }}
+                                                    type="button"
+                                                    title={
+                                                        analyzingId ===
+                                                        item.id_radiograph
+                                                            ? 'Menganalisis AI'
+                                                            : 'Mulai deteksi'
+                                                    }
+                                                >
+                                                    <Play size={16} />
+                                                </button>
+                                            )}
                                         {permissions.delete &&
                                             item.can_delete && (
                                                 <button

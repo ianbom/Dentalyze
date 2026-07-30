@@ -4,10 +4,12 @@ use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DetectionController;
 use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\FaskesController;
 use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PublicVerificationController;
+use App\Http\Controllers\RadiographAssignmentController;
 use App\Http\Controllers\RadiographController;
 use App\Http\Controllers\RadiographerController;
 use App\Http\Controllers\ReportController;
@@ -40,6 +42,9 @@ Route::middleware(['auth'])->group(function () {
         ->only(['index', 'store', 'update', 'destroy']);
     Route::resource('radiographers', RadiographerController::class)
         ->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('faskes', FaskesController::class)->except(['create', 'show', 'edit']);
+    Route::post('faskes-collaborations', [FaskesController::class, 'storeCollaboration'])->name('faskes.collaborations.store');
+    Route::delete('faskes-collaborations/{collaboration}', [FaskesController::class, 'destroyCollaboration'])->name('faskes.collaborations.destroy');
     Route::get('detection', [DetectionController::class, 'index'])->name('detection.index');
     Route::get('detection/{radiograph}', [DetectionController::class, 'show'])->name('detection.show');
 
@@ -51,6 +56,8 @@ Route::middleware(['auth'])->group(function () {
         ->name('radiographs.analyze');
     Route::post('radiographs/{radiograph}/finalize', [RadiographController::class, 'finalize'])
         ->name('radiographs.finalize');
+    Route::patch('radiographs/{radiograph}/assignment', [RadiographAssignmentController::class, 'update'])
+        ->name('radiographs.assignment.update');
     Route::get('radiographs-history', [RadiographController::class, 'historyIndex'])
         ->name('radiographs.history.index');
     Route::get('radiographs/{radiograph}/history', [RadiographController::class, 'history'])

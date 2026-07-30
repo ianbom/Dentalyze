@@ -5,13 +5,21 @@ import patients from '@/routes/patients';
 
 type PatientsEditProps = {
     patient: PatientFormPatient;
+    faskesOptions: { id: number; name: string }[];
 };
 
-export default function PatientsEdit({ patient }: PatientsEditProps) {
+export default function PatientsEdit({
+    faskesOptions,
+    patient,
+}: PatientsEditProps) {
     return (
         <>
             <Head title={`Edit ${patient.name}`} />
-            <PatientForm mode="edit" patient={patient} />
+            <PatientForm
+                faskesOptions={faskesOptions}
+                mode="edit"
+                patient={patient}
+            />
         </>
     );
 }

@@ -28,6 +28,7 @@ class StorePatientRequest extends FormRequest
             'age' => ['required', 'integer', 'min:0', 'max:130'],
             'gender' => ['required', Rule::in(['male', 'female'])],
             'return_to' => ['nullable', Rule::in(['patients.index', 'radiographs.index'])],
+            'faskes_id' => ['nullable', 'integer', 'exists:faskes,id'],
         ];
     }
 }

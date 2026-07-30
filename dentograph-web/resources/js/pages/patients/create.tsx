@@ -2,11 +2,15 @@ import { Head } from '@inertiajs/react';
 import PatientForm from '@/pages/patients/_patient-form';
 import patients from '@/routes/patients';
 
-export default function PatientsCreate() {
+type PatientsCreateProps = {
+    faskesOptions: { id: number; name: string }[];
+};
+
+export default function PatientsCreate({ faskesOptions }: PatientsCreateProps) {
     return (
         <>
             <Head title="Tambah Pasien" />
-            <PatientForm mode="create" />
+            <PatientForm faskesOptions={faskesOptions} mode="create" />
         </>
     );
 }

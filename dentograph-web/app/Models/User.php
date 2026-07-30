@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -23,6 +24,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'phone',
         'role', // Penting: Admin, Radiografer, Dokter, Pasien
+        'faskes_id',
     ];
 
     protected $hidden = [
@@ -47,5 +49,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function patient(): HasOne
     {
         return $this->hasOne(Patient::class);
+    }
+
+    public function faskes(): BelongsTo
+    {
+        return $this->belongsTo(Faskes::class);
     }
 }

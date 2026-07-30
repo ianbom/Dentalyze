@@ -11,6 +11,8 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class VerificationService
 {
+    public function __construct(private FaskesAccessService $access) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -21,8 +23,17 @@ class VerificationService
 
         if ($canVerify) {
             $tasks = Radiograph::query()
-                ->with(['patient.user:id,name,email,phone', 'radiografer:id,name'])
+                ->with(['patient.user:id,name,email,phone', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name'])
                 ->where('status', 'menunggu')
+                ->when($doctor->role === 'dokter', function ($query) use ($doctor): void {
+                    $query->where(function ($query) use ($doctor): void {
+                        $query->where('assigned_doctor_id', $doctor->id)
+                            ->orWhere(function ($query) use ($doctor): void {
+                                $query->whereNull('assigned_doctor_id')
+                                    ->where('review_faskes_id', $doctor->faskes_id);
+                            });
+                    });
+                })
                 ->latest()
                 ->get()
                 ->map(fn (Radiograph $radiograph): array => [
@@ -30,6 +41,8 @@ class VerificationService
                     'patient_name' => $radiograph->patient?->user?->name ?? $radiograph->patient_nik,
                     'patient_nik' => $radiograph->patient_nik,
                     'radiographer_name' => $radiograph->radiografer?->name,
+                    'faskes_name' => $radiograph->faskes?->name,
+                    'review_faskes_name' => $radiograph->reviewFaskes?->name,
                     'image_url' => Storage::url($radiograph->image),
                     'status' => 'menunggu',
                     'created_at' => optional($radiograph->created_at)->format('Y-m-d'),
@@ -57,6 +70,7 @@ class VerificationService
         $radiographModel = Radiograph::query()
             ->with('detections')
             ->findOrFail($radiograph);
+        abort_unless($this->access->canFinalize($doctor, $radiographModel), 403);
 
         $activeDetections = collect($data['detections'] ?? [])
             ->filter(fn (array $item): bool => (bool) ($item['is_active'] ?? true))

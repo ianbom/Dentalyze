@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import {
+    Building2,
     CalendarDays,
     IdCard,
     Mail,
@@ -22,6 +23,8 @@ export type PatientFormPatient = {
     age: number;
     gender: 'male' | 'female';
     address: string | null;
+    faskes_id: number | null;
+    faskes_name?: string | null;
 };
 
 type PatientFormData = {
@@ -34,11 +37,13 @@ type PatientFormData = {
     age: string;
     gender: 'male' | 'female';
     address: string;
+    faskes_id: string;
 };
 
 type PatientFormProps = {
     mode: 'create' | 'edit';
     patient?: PatientFormPatient;
+    faskesOptions?: { id: number; name: string }[];
 };
 
 const inputClass =
@@ -47,7 +52,11 @@ const inputClass =
 const labelClass =
     'text-[11px] font-black uppercase tracking-[0.24em] text-[#9ea6b6]';
 
-export default function PatientForm({ mode, patient }: PatientFormProps) {
+export default function PatientForm({
+    faskesOptions = [],
+    mode,
+    patient,
+}: PatientFormProps) {
     const isEdit = mode === 'edit';
 
     const { data, setData, post, processing, errors, transform } =
@@ -61,6 +70,7 @@ export default function PatientForm({ mode, patient }: PatientFormProps) {
             age: patient ? String(patient.age) : '',
             gender: patient?.gender ?? 'male',
             address: patient?.address ?? '',
+            faskes_id: patient?.faskes_id ? String(patient.faskes_id) : '',
         });
 
     function calculateAge(birthDate: string) {
@@ -147,6 +157,30 @@ export default function PatientForm({ mode, patient }: PatientFormProps) {
                 </div>
 
                 <div className="mt-8 grid gap-5 lg:grid-cols-2">
+                    {faskesOptions.length > 0 && (
+                        <Field
+                            className="lg:col-span-2"
+                            error={errors.faskes_id}
+                            icon={Building2}
+                            label="Faskes Asal"
+                        >
+                            <select
+                                className={inputClass}
+                                onChange={(event) =>
+                                    setData('faskes_id', event.target.value)
+                                }
+                                value={data.faskes_id}
+                            >
+                                <option value="">Pilih faskes asal</option>
+                                {faskesOptions.map((faskes) => (
+                                    <option key={faskes.id} value={faskes.id}>
+                                        {faskes.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+                    )}
+
                     <Field error={errors.nik} icon={IdCard} label="NIK">
                         <input
                             className={inputClass}

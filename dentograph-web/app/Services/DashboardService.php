@@ -6,16 +6,21 @@ use App\Models\Patient;
 use App\Models\Radiograph;
 use App\Models\User;
 use Carbon\CarbonPeriod;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
 class DashboardService
 {
+    public function __construct(private FaskesAccessService $access) {}
+
     /**
      * @return array<string, mixed>
      */
     public function getDashboardData(User $user): array
     {
         $role = $user->role;
+        $patientScope = $this->access->scopePatients(Patient::query(), $user);
+        $radiographScope = $this->access->scopeRadiographs(Radiograph::query(), $user);
 
         $stats = match ($role) {
             'admin' => [
@@ -30,22 +35,22 @@ class DashboardService
                 'radiograph_uploads' => Radiograph::whereNotNull('id_radiografer')->count(),
             ],
             'radiografer' => [
-                'total_patients' => Patient::count(),
+                'total_patients' => (clone $patientScope)->count(),
                 'detections_today' => Radiograph::where('id_radiografer', $user->id)
                     ->whereDate('created_at', today())
                     ->count(),
                 'total_detections' => Radiograph::where('id_radiografer', $user->id)->count(),
-                'pending_detections' => Radiograph::where('status', 'menunggu')->count(),
+                'pending_detections' => (clone $radiographScope)->where('status', 'menunggu')->count(),
             ],
             'dokter' => [
                 'my_patients' => Radiograph::where('id_dokter', $user->id)
                     ->distinct('patient_nik')
                     ->count('patient_nik'),
-                'pending_verifications' => Radiograph::where('status', 'menunggu')->count(),
+                'pending_verifications' => $this->verificationQueueQuery($user)->count(),
                 'completed_verifications' => Radiograph::where('id_dokter', $user->id)
                     ->where('status', 'terverifikasi')
                     ->count(),
-                'total_system' => Radiograph::count(),
+                'total_system' => (clone $radiographScope)->count(),
             ],
             'pasien' => $this->patientStats($user),
             default => [],
@@ -61,11 +66,11 @@ class DashboardService
                 'weekly' => $this->detectionSeries('week'),
                 'monthly' => $this->detectionSeries('month'),
             ] : [],
-            'recent_patients' => $role === 'radiografer' ? $this->recentPatients() : [],
+            'recent_patients' => $role === 'radiografer' ? $this->recentPatients($user) : [],
             'completed_detections' => $role === 'radiografer'
                 ? $this->completedDetectionsForRadiographer($user)
                 : [],
-            'verification_queue' => $role === 'dokter' ? $this->verificationQueue() : [],
+            'verification_queue' => $role === 'dokter' ? $this->verificationQueue($user) : [],
             'doctor_completed_detections' => $role === 'dokter'
                 ? $this->completedDetectionsForDoctor($user)
                 : [],
@@ -295,9 +300,9 @@ class DashboardService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function recentPatients(): array
+    private function recentPatients(User $viewer): array
     {
-        return Patient::query()
+        return $this->access->scopePatients(Patient::query(), $viewer)
             ->with('user:id,name')
             ->latest()
             ->limit(4)
@@ -338,11 +343,10 @@ class DashboardService
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function verificationQueue(): array
+    private function verificationQueue(User $doctor): array
     {
-        return Radiograph::query()
+        return $this->verificationQueueQuery($doctor)
             ->with(['patient.user:id,name'])
-            ->where('status', 'menunggu')
             ->latest()
             ->limit(6)
             ->get()
@@ -353,6 +357,19 @@ class DashboardService
             ])
             ->values()
             ->all();
+    }
+
+    private function verificationQueueQuery(User $doctor): Builder
+    {
+        return Radiograph::query()
+            ->where('status', 'menunggu')
+            ->where(function (Builder $query) use ($doctor): void {
+                $query->where('assigned_doctor_id', $doctor->id)
+                    ->orWhere(function (Builder $query) use ($doctor): void {
+                        $query->whereNull('assigned_doctor_id')
+                            ->where('review_faskes_id', $doctor->faskes_id);
+                    });
+            });
     }
 
     /**

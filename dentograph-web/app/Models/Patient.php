@@ -13,6 +13,7 @@ class Patient extends Model
     protected $fillable = [
         'nik',
         'user_id',
+        'faskes_id',
         'birth_place',
         'birth_date',
         'address',
@@ -30,5 +31,10 @@ class Patient extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function faskes(): BelongsTo
+    {
+        return $this->belongsTo(Faskes::class);
     }
 }

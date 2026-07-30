@@ -13,6 +13,8 @@ type VerificationTask = {
     patient_name: string;
     patient_nik: string;
     radiographer_name: string | null;
+    faskes_name: string | null;
+    review_faskes_name: string | null;
     image_url: string;
     status: string;
     created_at: string | null;
@@ -46,6 +48,8 @@ export default function VerificationTasks({
                 item.patient_name,
                 item.patient_nik,
                 item.radiographer_name ?? '',
+                item.faskes_name ?? '',
+                item.review_faskes_name ?? '',
             ].some((value) => value.toLowerCase().includes(query)),
         );
     }, [search, tasks]);
@@ -211,6 +215,19 @@ export default function VerificationTasks({
                                                     label="Upload"
                                                     value={
                                                         item.created_at ?? '-'
+                                                    }
+                                                />
+                                                <InfoPill
+                                                    label="Faskes Asal"
+                                                    value={
+                                                        item.faskes_name ?? '-'
+                                                    }
+                                                />
+                                                <InfoPill
+                                                    label="Tujuan Review"
+                                                    value={
+                                                        item.review_faskes_name ??
+                                                        '-'
                                                     }
                                                 />
                                             </div>

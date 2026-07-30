@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Radiograph;
+use App\Services\FaskesAccessService;
 use App\Services\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response as HttpResponse;
@@ -47,11 +48,8 @@ class ReportController extends Controller
     private function ensureViewer(string $radiograph): void
     {
         $user = request()->user();
+        $record = Radiograph::query()->findOrFail($radiograph);
 
-        abort_unless(
-            $user?->role !== 'pasien'
-                || $user->patient?->nik === Radiograph::query()->whereKey($radiograph)->value('patient_nik'),
-            403,
-        );
+        abort_unless($user && app(FaskesAccessService::class)->canViewRadiograph($user, $record), 403);
     }
 }

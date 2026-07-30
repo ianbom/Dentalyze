@@ -29,6 +29,7 @@ class UpdateStaffRequest extends FormRequest
             ],
             'phone' => ['nullable', 'digits_between:11,12'],
             'password' => ['nullable', 'string', 'min:8'],
+            'faskes_id' => ['required', 'integer', 'exists:faskes,id'],
         ];
     }
 }

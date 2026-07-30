@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import {
+    Building2,
     CalendarDays,
     FileClock,
     IdCard,
@@ -119,6 +120,9 @@ export default function PatientsShow({
                             </InfoCard>
                             <InfoCard icon={Users} label="Terdaftar">
                                 {formatDate(patient.created_at)}
+                            </InfoCard>
+                            <InfoCard icon={Building2} label="Faskes Asal">
+                                {patient.faskes_name ?? '-'}
                             </InfoCard>
                         </div>
 

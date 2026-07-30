@@ -2,6 +2,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     Activity,
     Bot,
+    Building2,
     Camera,
     ChevronDown,
     ChevronRight,
@@ -21,6 +22,7 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
 import detection from '@/routes/detection';
 import doctors from '@/routes/doctors';
+import faskes from '@/routes/faskes/index';
 import knowledge from '@/routes/knowledge';
 import patients from '@/routes/patients';
 import { edit as editProfile } from '@/routes/profile';
@@ -51,6 +53,12 @@ const navItems = [
         label: 'Data Dokter',
         href: doctors.index(),
         icon: Stethoscope,
+        roles: ['admin'],
+    },
+    {
+        label: 'Faskes',
+        href: faskes.index(),
+        icon: Building2,
         roles: ['admin'],
     },
     {

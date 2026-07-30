@@ -36,6 +36,7 @@ class UpdatePatientRequest extends FormRequest
             'address' => ['required', 'string', 'max:1000'],
             'age' => ['required', 'integer', 'min:0', 'max:130'],
             'gender' => ['required', Rule::in(['male', 'female'])],
+            'faskes_id' => ['nullable', 'integer', 'exists:faskes,id'],
         ];
     }
 }

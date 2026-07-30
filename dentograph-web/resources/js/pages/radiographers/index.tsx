@@ -4,6 +4,7 @@ import radiographers from '@/routes/radiographers';
 
 type RadiographersIndexProps = {
     users: StaffUser[];
+    faskesOptions: { id: number; name: string }[];
     filters: {
         total: number;
         with_phone: number;

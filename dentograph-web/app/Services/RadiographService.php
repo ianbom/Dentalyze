@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Faskes;
 use App\Models\Patient;
 use App\Models\Radiograph;
 use App\Models\User;
@@ -11,25 +12,28 @@ use Illuminate\Support\Str;
 
 class RadiographService
 {
+    public function __construct(private FaskesAccessService $access) {}
+
     /**
      * @return array<string, mixed>
      */
     public function indexData(User $viewer): array
     {
-        $radiographs = Radiograph::query()
-            ->when($viewer->role === 'pasien', fn ($query) => $query->where('patient_nik', $viewer->patient?->nik ?? '__none__'))
-            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'detections'])
+        $radiographs = $this->access->scopeRadiographs(Radiograph::query(), $viewer)
+            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name', 'detections'])
             ->latest()
             ->get()
             ->map(fn (Radiograph $radiograph): array => [
                 ...$this->payload($radiograph),
+                'can_analyze' => $this->access->canEditRadiograph($viewer, $radiograph),
                 'can_delete' => $this->canDelete($radiograph, $viewer),
             ])
             ->values();
 
         return [
             'radiographs' => $radiographs,
-            'patients' => $this->patientOptions(),
+            'patients' => $this->patientOptions($viewer),
+            'faskesOptions' => $viewer->role === 'admin' ? Faskes::query()->orderBy('name')->get(['id', 'name']) : [],
             'filters' => [
                 'total' => $radiographs->count(),
                 'waiting' => $radiographs->where('status', 'menunggu')->count(),
@@ -50,11 +54,11 @@ class RadiographService
     {
         $radiograph = $this->findForViewer($radiograph, $viewer);
         $isFinalized = $radiograph->status === 'terverifikasi';
-        $canAnalyze = $viewer && ! $isFinalized
-            ? in_array($viewer->role, ['admin', 'dokter', 'radiografer'], true)
+        $canAnalyze = $viewer
+            ? $this->access->canEditRadiograph($viewer, $radiograph)
             : false;
         $canFinalize = $viewer && ! $isFinalized
-            ? in_array($viewer->role, ['admin', 'dokter'], true)
+            ? $this->access->canFinalize($viewer, $radiograph)
             : false;
 
         return [
@@ -79,15 +83,21 @@ class RadiographService
             'permissions' => [
                 'analyze' => $canAnalyze,
                 'finalize' => $canFinalize,
+                'assign' => $viewer ? $this->access->canDispatch($viewer, $radiograph) : false,
             ],
+            'doctorOptions' => $viewer && $this->access->canDispatch($viewer, $radiograph)
+                ? User::query()->where('role', 'dokter')->whereNotNull('faskes_id')->when($viewer->role !== 'admin', fn ($query) => $query->whereIn('faskes_id', $this->access->accessibleFaskesIds($viewer)))->with('faskes:id,name')->orderBy('name')->get()->map(fn (User $doctor) => ['id' => $doctor->id, 'name' => $doctor->name, 'faskes_name' => $doctor->faskes?->name])
+                : [],
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function historyData(string $radiograph): array
+    public function historyData(string $radiograph, User $viewer): array
     {
+        $this->findForViewer($radiograph, $viewer);
+
         return [
             'radiograph' => $radiograph,
             'history' => [],
@@ -99,9 +109,8 @@ class RadiographService
      */
     public function historyIndexData(User $viewer): array
     {
-        $radiographs = Radiograph::query()
-            ->when($viewer->role === 'pasien', fn ($query) => $query->where('patient_nik', $viewer->patient?->nik ?? '__none__'))
-            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'detections'])
+        $radiographs = $this->access->scopeRadiographs(Radiograph::query(), $viewer)
+            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name', 'detections'])
             ->withCount('detections')
             ->latest()
             ->get()
@@ -132,13 +141,21 @@ class RadiographService
      */
     public function create(array $data, User $radiographer): string
     {
+        $patient = Patient::query()->where('nik', $data['patient_nik'])->firstOrFail();
+        abort_unless($this->access->canManagePatient($radiographer, $patient), 403);
+
+        $faskesId = $patient->faskes_id;
+        $faskesId ??= Faskes::query()->where('type', 'legacy')->value('id');
+        abort_unless($faskesId, 422);
         $id = 'RAD-'.now()->format('YmdHis').'-'.Str::upper(Str::random(4));
         $image = $data['image']->store('radiographs', 'public');
 
         Radiograph::create([
             'id_radiograph' => $id,
             'id_dokter' => null,
-            'id_radiografer' => $radiographer->id,
+            'id_radiografer' => $radiographer->role === 'radiografer' ? $radiographer->id : null,
+            'faskes_id' => $faskesId,
+            'review_faskes_id' => $faskesId,
             'patient_nik' => $data['patient_nik'],
             'image' => $image,
             'status' => 'menunggu',
@@ -180,30 +197,32 @@ class RadiographService
         }
 
         return $viewer->role === 'radiografer'
-            && (int) $radiograph->id_radiografer === (int) $viewer->id;
+            && (int) $radiograph->faskes_id === (int) $viewer->faskes_id;
     }
 
     public function find(string $radiograph): Radiograph
     {
         return Radiograph::query()
-            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name'])
+            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name'])
             ->findOrFail($radiograph);
     }
 
     private function findForViewer(string $radiograph, ?User $viewer): Radiograph
     {
-        return Radiograph::query()
-            ->when($viewer?->role === 'pasien', fn ($query) => $query->where('patient_nik', $viewer->patient?->nik ?? '__none__'))
-            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name'])
+        $record = Radiograph::query()
+            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name'])
             ->findOrFail($radiograph);
+        abort_unless($viewer && $this->access->canViewRadiograph($viewer, $record), 403);
+
+        return $record;
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function patientOptions(): array
+    private function patientOptions(User $viewer): array
     {
-        return Patient::query()
+        return $this->access->scopePatients(Patient::query(), $viewer)
             ->with('user:id,name')
             ->latest()
             ->get()
@@ -246,7 +265,10 @@ class RadiographService
                 'address' => $radiograph->patient?->address,
             ],
             'doctor_name' => $radiograph->dokter?->name,
+            'assigned_doctor_name' => $radiograph->assignedDoctor?->name,
             'radiographer_name' => $radiograph->radiografer?->name,
+            'faskes_name' => $radiograph->faskes?->name,
+            'review_faskes_name' => $radiograph->reviewFaskes?->name,
             'image_url' => Storage::url($radiograph->image),
             'result_image_url' => $radiograph->result_image
                 ? Storage::url($radiograph->result_image).'?v='.optional($radiograph->updated_at)->timestamp

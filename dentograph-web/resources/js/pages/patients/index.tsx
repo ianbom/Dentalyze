@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    Building2,
     CalendarDays,
     Eye,
     FileClock,
@@ -32,6 +33,8 @@ type Patient = {
     gender: 'male' | 'female';
     address: string | null;
     created_at: string | null;
+    faskes_name: string | null;
+    can_manage: boolean;
 };
 
 type PatientsIndexProps = {
@@ -103,6 +106,7 @@ export default function PatientsIndex({
                     patient.phone,
                     patient.birth_place,
                     patient.address,
+                    patient.faskes_name,
                     genderLabels[patient.gender],
                 ]
                     .filter(Boolean)
@@ -274,6 +278,7 @@ export default function PatientsIndex({
                                         <th className="px-5 py-4">Kontak</th>
                                         <th className="px-5 py-4">Lahir</th>
                                         <th className="px-5 py-4">Gender</th>
+                                        <th className="px-5 py-4">Faskes</th>
                                         <th className="px-5 py-4 text-right">
                                             Aksi
                                         </th>
@@ -308,6 +313,12 @@ export default function PatientsIndex({
                                             </td>
                                             <td className="px-5 py-4 font-medium text-[#22304F]">
                                                 {patient.nik}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className="inline-flex items-center gap-2 rounded-[10px] border border-white/70 bg-white/45 px-3 py-1 text-xs font-semibold text-[#526184] shadow-sm backdrop-blur-md">
+                                                    <Building2 size={13} />
+                                                    {patient.faskes_name ?? '-'}
+                                                </span>
                                             </td>
                                             <td className="px-5 py-4">
                                                 <div className="space-y-1 text-xs">
@@ -372,32 +383,43 @@ export default function PatientsIndex({
                                                         </Link>
                                                     )}
 
-                                                    {permissions.update && (
-                                                        <Link
-                                                            aria-label={`Edit ${patient.name}`}
-                                                            className="grid size-9 place-items-center rounded-[13px] border border-cyan-100/80 bg-cyan-50/75 text-cyan-600 shadow-[0_12px_28px_rgba(6,182,212,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-100/80 hover:shadow-[0_16px_34px_rgba(6,182,212,0.18)]"
-                                                            href={patients.edit(
-                                                                patient.nik,
-                                                            )}
-                                                            prefetch
-                                                        >
-                                                            <Pencil size={16} />
-                                                        </Link>
-                                                    )}
+                                                    {permissions.update &&
+                                                        patient.can_manage && (
+                                                            <Link
+                                                                aria-label={`Edit ${patient.name}`}
+                                                                className="grid size-9 place-items-center rounded-[13px] border border-cyan-100/80 bg-cyan-50/75 text-cyan-600 shadow-[0_12px_28px_rgba(6,182,212,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:border-cyan-200 hover:bg-cyan-100/80 hover:shadow-[0_16px_34px_rgba(6,182,212,0.18)]"
+                                                                href={patients.edit(
+                                                                    patient.nik,
+                                                                )}
+                                                                prefetch
+                                                            >
+                                                                <Pencil
+                                                                    size={16}
+                                                                />
+                                                            </Link>
+                                                        )}
 
-                                                    {permissions.delete && (
-                                                        <button
-                                                            aria-label={`Hapus ${patient.name}`}
-                                                            className="grid size-9 place-items-center rounded-[13px] border border-rose-100/80 bg-rose-50/75 text-rose-500 shadow-[0_12px_28px_rgba(244,63,94,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:border-rose-200 hover:bg-rose-100/80 hover:shadow-[0_16px_34px_rgba(244,63,94,0.18)]"
-                                                            onClick={() =>
-                                                                setDeletingPatient(
-                                                                    patient,
-                                                                )
-                                                            }
-                                                            type="button"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
+                                                    {permissions.delete &&
+                                                        patient.can_manage && (
+                                                            <button
+                                                                aria-label={`Hapus ${patient.name}`}
+                                                                className="grid size-9 place-items-center rounded-[13px] border border-rose-100/80 bg-rose-50/75 text-rose-500 shadow-[0_12px_28px_rgba(244,63,94,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:border-rose-200 hover:bg-rose-100/80 hover:shadow-[0_16px_34px_rgba(244,63,94,0.18)]"
+                                                                onClick={() =>
+                                                                    setDeletingPatient(
+                                                                        patient,
+                                                                    )
+                                                                }
+                                                                type="button"
+                                                            >
+                                                                <Trash2
+                                                                    size={16}
+                                                                />
+                                                            </button>
+                                                        )}
+                                                    {!patient.can_manage && (
+                                                        <span className="rounded-[10px] bg-slate-100 px-3 py-2 text-[10px] font-black tracking-wider text-slate-500 uppercase">
+                                                            Read-only
+                                                        </span>
                                                     )}
                                                 </div>
                                             </td>

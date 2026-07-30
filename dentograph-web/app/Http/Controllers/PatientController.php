@@ -17,11 +17,11 @@ class PatientController extends Controller
         return Inertia::render('patients/index', $service->indexData($request->user()));
     }
 
-    public function create(): Response
+    public function create(PatientService $service): Response
     {
         abort_unless(in_array(request()->user()?->role, ['admin', 'radiografer'], true), 403);
 
-        return Inertia::render('patients/create');
+        return Inertia::render('patients/create', $service->formData(request()->user()));
     }
 
     public function store(StorePatientRequest $request, PatientService $service): RedirectResponse
@@ -29,7 +29,7 @@ class PatientController extends Controller
         abort_unless(in_array($request->user()->role, ['admin', 'radiografer'], true), 403);
 
         $data = $request->validated();
-        $patient = $service->create($data);
+        $patient = $service->create($data, $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Patient created.')]);
 
@@ -51,14 +51,17 @@ class PatientController extends Controller
     {
         abort_unless(in_array($request->user()->role, ['admin', 'radiografer'], true), 403);
 
-        return Inertia::render('patients/edit', $service->detailData($patient, $request->user()));
+        $data = $service->detailData($patient, $request->user());
+        abort_unless($data['permissions']['update'], 403);
+
+        return Inertia::render('patients/edit', $data);
     }
 
     public function update(UpdatePatientRequest $request, string $patient, PatientService $service): RedirectResponse
     {
         abort_unless(in_array($request->user()->role, ['admin', 'radiografer'], true), 403);
 
-        $service->update($patient, $request->validated());
+        $service->update($patient, $request->validated(), $request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Patient updated.')]);
 
@@ -69,7 +72,7 @@ class PatientController extends Controller
     {
         abort_unless(in_array(request()->user()?->role, ['admin', 'radiografer'], true), 403);
 
-        $service->delete($patient);
+        $service->delete($patient, request()->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Patient deleted.')]);
 
@@ -80,7 +83,7 @@ class PatientController extends Controller
     {
         abort_unless($this->canViewPatient(request(), $patient), 403);
 
-        return Inertia::render('patients/history', $service->historyData($patient));
+        return Inertia::render('patients/history', $service->historyData($patient, request()->user()));
     }
 
     private function canViewPatient(Request $request, string $patient): bool

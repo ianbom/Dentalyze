@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class AiContextService
 {
+    public function __construct(private FaskesAccessService $access) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -91,17 +93,7 @@ class AiContextService
 
     public function radiographQueryFor(User $user): Builder
     {
-        return match ($user->role) {
-            'admin' => Radiograph::query(),
-            'dokter' => Radiograph::query()
-                ->where(function (Builder $query) use ($user): void {
-                    $query->where('status', 'menunggu')
-                        ->orWhere('id_dokter', $user->id);
-                }),
-            'radiografer' => Radiograph::query()->where('id_radiografer', $user->id),
-            'pasien' => Radiograph::query()->where('patient_nik', $user->patient?->nik ?? '__none__'),
-            default => Radiograph::query()->whereRaw('1 = 0'),
-        };
+        return $this->access->scopeRadiographs(Radiograph::query(), $user);
     }
 
     /**
@@ -109,30 +101,8 @@ class AiContextService
      */
     private function patientsFor(User $user): array
     {
-        $query = Patient::query()->with('user:id,name,email,phone');
-
-        if ($user->role === 'pasien') {
-            $query->where('user_id', $user->id);
-        }
-
-        if ($user->role === 'radiografer') {
-            $query->whereIn(
-                'nik',
-                Radiograph::query()->where('id_radiografer', $user->id)->select('patient_nik'),
-            );
-        }
-
-        if ($user->role === 'dokter') {
-            $query->whereIn(
-                'nik',
-                Radiograph::query()
-                    ->where(function (Builder $query) use ($user): void {
-                        $query->where('status', 'menunggu')
-                            ->orWhere('id_dokter', $user->id);
-                    })
-                    ->select('patient_nik'),
-            );
-        }
+        $query = $this->access->scopePatients(Patient::query(), $user)
+            ->with('user:id,name,email,phone');
 
         return $query
             ->latest()

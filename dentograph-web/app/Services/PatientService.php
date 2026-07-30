@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Faskes;
 use App\Models\Patient;
 use App\Models\Radiograph;
 use App\Models\User;
@@ -11,13 +12,15 @@ use Illuminate\Support\Facades\Hash;
 
 class PatientService
 {
+    public function __construct(private FaskesAccessService $access) {}
+
     /**
      * @return array<string, mixed>
      */
     public function indexData(User $viewer): array
     {
-        $patients = Patient::query()
-            ->with('user:id,name,email,phone,role')
+        $patients = $this->access->scopePatients(Patient::query(), $viewer)
+            ->with(['user:id,name,email,phone,role', 'faskes:id,name'])
             ->latest()
             ->get()
             ->map(fn (Patient $patient): array => [
@@ -32,6 +35,8 @@ class PatientService
                 'gender' => $patient->gender,
                 'address' => $patient->address,
                 'created_at' => optional($patient->created_at)->format('Y-m-d'),
+                'faskes_name' => $patient->faskes?->name,
+                'can_manage' => $this->access->canManagePatient($viewer, $patient),
             ])
             ->values();
 
@@ -48,7 +53,16 @@ class PatientService
                 'delete' => in_array($viewer->role, ['admin', 'radiografer'], true),
                 'view_history' => in_array($viewer->role, ['admin', 'radiografer', 'dokter'], true),
             ],
+            'faskesOptions' => $this->faskesOptions($viewer),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function formData(User $viewer): array
+    {
+        return ['faskesOptions' => $this->faskesOptions($viewer)];
     }
 
     /**
@@ -57,22 +71,25 @@ class PatientService
     public function detailData(string $patient, ?User $viewer = null): array
     {
         $patient = $this->findByNik($patient);
+        abort_unless(! $viewer || $this->access->canViewPatient($viewer, $patient), 403);
 
         return [
             'patient' => $this->patientPayload($patient),
             'permissions' => [
-                'update' => $viewer ? in_array($viewer->role, ['admin', 'radiografer'], true) : true,
-                'delete' => in_array($viewer?->role, ['admin', 'radiografer'], true),
+                'update' => $viewer ? $this->access->canManagePatient($viewer, $patient) : true,
+                'delete' => $viewer ? $this->access->canManagePatient($viewer, $patient) : false,
             ],
+            'faskesOptions' => $viewer ? $this->faskesOptions($viewer) : [],
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function historyData(string $patient): array
+    public function historyData(string $patient, User $viewer): array
     {
         $patient = $this->findByNik($patient);
+        abort_unless($this->access->canViewPatient($viewer, $patient), 403);
         $radiographs = Radiograph::query()
             ->with(['dokter:id,name', 'radiografer:id,name'])
             ->withCount('detections')
@@ -104,9 +121,12 @@ class PatientService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function create(array $data): string
+    public function create(array $data, User $actor): string
     {
         $data['age'] = Carbon::parse($data['birth_date'])->age;
+        $data['faskes_id'] = $actor->role === 'admin' ? ($data['faskes_id'] ?? null) : $actor->faskes_id;
+        $data['faskes_id'] ??= Faskes::query()->where('type', 'legacy')->value('id');
+        abort_unless($data['faskes_id'], 422);
 
         DB::transaction(function () use ($data): void {
             $user = User::create([
@@ -120,6 +140,7 @@ class PatientService
             Patient::create([
                 'nik' => $data['nik'],
                 'user_id' => $user->id,
+                'faskes_id' => $data['faskes_id'],
                 'birth_place' => $data['birth_place'],
                 'birth_date' => $data['birth_date'],
                 'address' => $data['address'],
@@ -134,11 +155,12 @@ class PatientService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function update(string $patient, array $data): string
+    public function update(string $patient, array $data, User $actor): string
     {
         $data['age'] = Carbon::parse($data['birth_date'])->age;
 
         $patientModel = $this->findByNik($patient);
+        abort_unless($this->access->canManagePatient($actor, $patientModel), 403);
 
         DB::transaction(function () use ($data, $patientModel): void {
             $patientModel->user()->update([
@@ -148,6 +170,9 @@ class PatientService
             ]);
 
             $patientModel->update([
+                'faskes_id' => $actor->role === 'admin'
+                    ? ($data['faskes_id'] ?? $patientModel->faskes_id)
+                    : $patientModel->faskes_id,
                 'birth_place' => $data['birth_place'],
                 'birth_date' => $data['birth_date'],
                 'address' => $data['address'],
@@ -159,9 +184,10 @@ class PatientService
         return $patientModel->nik;
     }
 
-    public function delete(string $patient): void
+    public function delete(string $patient, User $actor): void
     {
         $patientModel = $this->findByNik($patient);
+        abort_unless($this->access->canManagePatient($actor, $patientModel), 403);
 
         DB::transaction(function () use ($patientModel): void {
             $user = $patientModel->user;
@@ -174,7 +200,7 @@ class PatientService
     private function findByNik(string $patient): Patient
     {
         return Patient::query()
-            ->with('user:id,name,email,phone,role')
+            ->with(['user:id,name,email,phone,role', 'faskes:id,name'])
             ->where('nik', $patient)
             ->firstOrFail();
     }
@@ -196,7 +222,25 @@ class PatientService
             'gender' => $patient->gender,
             'address' => $patient->address,
             'created_at' => optional($patient->created_at)->format('Y-m-d'),
+            'faskes_id' => $patient->faskes_id,
+            'faskes_name' => $patient->faskes?->name,
         ];
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function faskesOptions(User $viewer): array
+    {
+        if ($viewer->role !== 'admin') {
+            return [];
+        }
+
+        return Faskes::query()
+            ->where('type', '!=', 'legacy')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->toArray();
     }
 
     private function normalizeRadiographStatus(?string $status): string

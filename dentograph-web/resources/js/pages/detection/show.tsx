@@ -3,6 +3,7 @@ import { ArrowLeft, Download, Play, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { dashboard } from '@/routes';
 import radiographs from '@/routes/radiographs';
+import assignment from '@/routes/radiographs/assignment/index';
 import radiographReports from '@/routes/reports/radiographs';
 
 type Detection = {
@@ -36,13 +37,17 @@ type Props = {
         };
         doctor_name: string | null;
         radiographer_name: string | null;
+        assigned_doctor_name: string | null;
+        faskes_name: string | null;
+        review_faskes_name: string | null;
         image_url: string;
         result_image_url: string | null;
         preview_result_image?: string | null;
         status: string;
     };
     detections: Detection[];
-    permissions: { analyze: boolean; finalize: boolean };
+    permissions: { analyze: boolean; finalize: boolean; assign: boolean };
+    doctorOptions: { id: number; name: string; faskes_name: string | null }[];
 };
 
 const fdiRows = [
@@ -111,6 +116,7 @@ const legend = [
 
 export default function DetectionShow({
     detections,
+    doctorOptions,
     permissions,
     radiograph,
 }: Props) {
@@ -127,6 +133,7 @@ export default function DetectionShow({
     const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [analysisNotice, setAnalysisNotice] = useState<string | null>(null);
     const [selectedFdi, setSelectedFdi] = useState<string | null>(null);
+    const [selectedDoctor, setSelectedDoctor] = useState('');
     const { auth } = usePage().props as {
         auth?: { user?: { role?: string } };
     };
@@ -425,7 +432,65 @@ export default function DetectionShow({
                                         'Belum dianalisis'
                                     }
                                 />
+                                <DarkInfo
+                                    label="Faskes Asal"
+                                    value={radiograph.faskes_name ?? '-'}
+                                />
+                                <DarkInfo
+                                    label="Tujuan Review"
+                                    value={radiograph.review_faskes_name ?? '-'}
+                                />
                             </div>
+                            {permissions.assign && !isFinalized && (
+                                <form
+                                    className="mt-5 flex flex-col gap-2 sm:flex-row"
+                                    onSubmit={(event) => {
+                                        event.preventDefault();
+
+                                        if (selectedDoctor) {
+                                            router.patch(
+                                                assignment.update.url(
+                                                    radiograph.id_radiograph,
+                                                ),
+                                                { doctor_id: selectedDoctor },
+                                            );
+                                        }
+                                    }}
+                                >
+                                    <select
+                                        className="h-11 flex-1 rounded-[14px] border border-white/20 bg-white/12 px-4 text-sm text-white"
+                                        onChange={(event) =>
+                                            setSelectedDoctor(
+                                                event.target.value,
+                                            )
+                                        }
+                                        value={selectedDoctor}
+                                    >
+                                        <option
+                                            className="text-slate-900"
+                                            value=""
+                                        >
+                                            Pilih dokter tujuan
+                                        </option>
+                                        {doctorOptions.map((doctor) => (
+                                            <option
+                                                className="text-slate-900"
+                                                key={doctor.id}
+                                                value={doctor.id}
+                                            >
+                                                {doctor.name} —{' '}
+                                                {doctor.faskes_name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        className="h-11 rounded-[14px] bg-white px-5 text-xs font-black text-[#0878e8]"
+                                        type="submit"
+                                    >
+                                        Kirim Review
+                                    </button>
+                                </form>
+                            )}
                             <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
                                 {/* STATUS */}
                                 <div

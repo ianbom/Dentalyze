@@ -21,6 +21,7 @@ class StoreStaffRequest extends FormRequest
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'digits_between:11,12'],
             'password' => ['required', 'string', 'min:8'],
+            'faskes_id' => ['required', 'integer', 'exists:faskes,id'],
         ];
     }
 }

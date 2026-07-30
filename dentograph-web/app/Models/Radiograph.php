@@ -16,7 +16,10 @@ class Radiograph extends Model
 
     protected $fillable = [
         'id_radiograph',
+        'faskes_id',
+        'review_faskes_id',
         'id_dokter',
+        'assigned_doctor_id',
         'id_radiografer',
         'patient_nik',
         'image',
@@ -42,5 +45,20 @@ class Radiograph extends Model
     public function radiografer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'id_radiografer');
+    }
+
+    public function faskes(): BelongsTo
+    {
+        return $this->belongsTo(Faskes::class);
+    }
+
+    public function reviewFaskes(): BelongsTo
+    {
+        return $this->belongsTo(Faskes::class, 'review_faskes_id');
+    }
+
+    public function assignedDoctor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_doctor_id');
     }
 }

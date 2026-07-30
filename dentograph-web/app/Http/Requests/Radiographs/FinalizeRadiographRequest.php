@@ -2,13 +2,18 @@
 
 namespace App\Http\Requests\Radiographs;
 
+use App\Models\Radiograph;
+use App\Services\FaskesAccessService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class FinalizeRadiographRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role, ['admin', 'dokter'], true);
+        $radiograph = Radiograph::query()->find($this->route('radiograph'));
+
+        return $radiograph
+            && app(FaskesAccessService::class)->canFinalize($this->user(), $radiograph);
     }
 
     /**

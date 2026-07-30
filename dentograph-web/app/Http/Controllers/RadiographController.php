@@ -11,7 +11,6 @@ use App\Services\VerificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -50,9 +49,9 @@ class RadiographController extends Controller
         return Inertia::render('detection/show', $data);
     }
 
-    public function history(string $radiograph, RadiographService $service): Response
+    public function history(Request $request, string $radiograph, RadiographService $service): Response
     {
-        return Inertia::render('radiographs/history', $service->historyData($radiograph));
+        return Inertia::render('radiographs/history', $service->historyData($radiograph, $request->user()));
     }
 
     public function historyIndex(Request $request, RadiographService $service): Response
@@ -61,9 +60,7 @@ class RadiographController extends Controller
     }
 
     public function analyze(AnalyzeRadiographRequest $request, string $radiograph, AiDetectionService $service): JsonResponse|RedirectResponse
-    {   
-        Log::info('jalan');
-
+    {
         $result = $service->analyze($radiograph);
 
         if ($request->expectsJson()) {
