@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Faskes;
+use App\Models\Patient;
 use App\Models\User;
 
 function patientPayload(array $overrides = []): array
@@ -60,4 +61,35 @@ test('radiographer can create a patient for their own faskes', function () {
         'nik' => '1234567890123456',
         'faskes_id' => $faskes->id,
     ]);
+
+    $patient = Patient::query()->with('user')->where('nik', '1234567890123456')->firstOrFail();
+
+    expect($patient->user?->faskes_id)->toBe($faskes->id);
+});
+
+test('admin patient faskes changes stay synchronized with the user account', function () {
+    $faskesA = Faskes::query()->create(['name' => 'Klinik A', 'type' => 'Klinik']);
+    $faskesB = Faskes::query()->create(['name' => 'Klinik B', 'type' => 'Puskesmas']);
+    $admin = User::factory()->create(['role' => 'admin']);
+    $patientUser = User::factory()->create(['role' => 'pasien', 'faskes_id' => $faskesA->id]);
+    $patient = Patient::query()->create([
+        'nik' => '1234567890123456',
+        'user_id' => $patientUser->id,
+        'faskes_id' => $faskesA->id,
+        'birth_place' => 'Surabaya',
+        'birth_date' => '2000-01-01',
+        'address' => 'Surabaya',
+        'age' => 26,
+        'gender' => 'male',
+    ]);
+
+    $this->actingAs($admin)
+        ->put(route('patients.update', $patient->nik), patientPayload([
+            'email' => $patientUser->email,
+            'faskes_id' => $faskesB->id,
+        ]))
+        ->assertRedirect(route('patients.index'));
+
+    expect($patient->refresh()->faskes_id)->toBe($faskesB->id)
+        ->and($patientUser->refresh()->faskes_id)->toBe($faskesB->id);
 });

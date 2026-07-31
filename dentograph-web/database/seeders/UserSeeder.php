@@ -37,7 +37,7 @@ class UserSeeder extends Seeder
                 ['email' => $patient['email']],
                 [
                     ...$this->userData($patient['name'], $patient['phone'], 'pasien'),
-                    'faskes_id' => null,
+                    'faskes_id' => $faskes[$patient['faskes']],
                 ],
             );
 

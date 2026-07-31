@@ -11,8 +11,11 @@ use App\Services\FaskesService;
 use App\Services\RadiographService;
 use App\Services\StaffUserService;
 use App\Services\VerificationService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 function createFaskes(string $name): Faskes
 {
@@ -26,7 +29,7 @@ function createStaff(string $role, Faskes $faskes): User
 
 function createPatientAt(Faskes $faskes, string $nik): Patient
 {
-    $user = User::factory()->create(['role' => 'pasien']);
+    $user = User::factory()->create(['role' => 'pasien', 'faskes_id' => $faskes->id]);
 
     return Patient::query()->create([
         'nik' => $nik,
@@ -78,20 +81,33 @@ test('staff can view collaborator patients but cannot mutate them', function () 
         ->and($access->canManagePatient($radiographerA, $patientB))->toBeFalse();
 });
 
-test('collaborating clinical staff can analyze and edit a pending radiograph', function () {
+test('only collaborating doctors can analyze and edit a pending radiograph', function () {
     $faskesA = createFaskes('Faskes A');
     $faskesB = createFaskes('Faskes B');
     FaskesCollaboration::connect($faskesA, $faskesB);
     $radiographerA = createStaff('radiografer', $faskesA);
     $doctorB = createStaff('dokter', $faskesB);
     $radiographerB = createStaff('radiografer', $faskesB);
+    $admin = User::factory()->create(['role' => 'admin']);
     $patient = createPatientAt($faskesA, '1234567890123456');
     $radiograph = createRadiographAt($faskesA, $patient, $radiographerA, 'RAD-COLLAB-1');
     $access = app(FaskesAccessService::class);
     Http::fake(['*/predict' => Http::response(['results' => []])]);
 
-    expect($access->canEditRadiograph($doctorB, $radiograph))->toBeTrue()
-        ->and($access->canEditRadiograph($radiographerB, $radiograph))->toBeTrue();
+    expect($access->canEditRadiograph($admin, $radiograph))->toBeTrue()
+        ->and($access->canEditRadiograph($doctorB, $radiograph))->toBeTrue()
+        ->and($access->canEditRadiograph($radiographerB, $radiograph))->toBeFalse();
+
+    $this->actingAs($radiographerB)
+        ->get(route('radiographs.show', $radiograph))
+        ->assertInertia(fn ($page) => $page
+            ->component('detection/show')
+            ->where('permissions.analyze', false)
+            ->where('permissions.finalize', false));
+
+    $this->actingAs($radiographerB)
+        ->post(route('radiographs.analyze', $radiograph))
+        ->assertForbidden();
 
     $this->actingAs($doctorB)
         ->post(route('radiographs.analyze', $radiograph))
@@ -239,12 +255,13 @@ test('collaborating staff can delete pending radiographs but finalized radiograp
         ->toThrow(ConflictHttpException::class);
 });
 
-test('collaborating radiographer can persist detection edits without finalizing', function () {
+test('collaborating radiographer cannot persist detection edits', function () {
     $faskesA = createFaskes('Faskes A');
     $faskesB = createFaskes('Faskes B');
     FaskesCollaboration::connect($faskesA, $faskesB);
     $originRadiographer = createStaff('radiografer', $faskesA);
     $collaboratingRadiographer = createStaff('radiografer', $faskesB);
+    $collaboratingDoctor = createStaff('dokter', $faskesB);
     $patient = createPatientAt($faskesA, '1234567890123456');
     $radiograph = createRadiographAt($faskesA, $patient, $originRadiographer, 'RAD-DRAFT-DETECTIONS');
     $radiograph->detections()->createMany([
@@ -262,8 +279,68 @@ test('collaborating radiographer can persist detection edits without finalizing'
                 'source' => 'manual',
             ]],
         ])
+        ->assertForbidden();
+
+    expect($radiograph->refresh()->status)->toBe('menunggu')
+        ->and($radiograph->detections()->orderBy('no_fdi')->pluck('no_fdi')->all())->toBe(['11', '12']);
+
+    $this->actingAs($collaboratingDoctor)
+        ->patch(route('radiographs.detections.update', $radiograph), [
+            'detections' => [[
+                'no_fdi' => '11',
+                'abnormality' => 'Karies',
+                'analysis' => 'Perlu perawatan',
+                'is_active' => true,
+                'source' => 'manual',
+            ]],
+        ])
         ->assertRedirect();
 
     expect($radiograph->refresh()->status)->toBe('menunggu')
         ->and($radiograph->detections()->pluck('no_fdi')->all())->toBe(['11']);
 });
+
+test('radiographer sees direct collaborator patients and uploads radiographs under the uploader faskes', function () {
+    Storage::fake('public');
+    $faskesA = createFaskes('Faskes A');
+    $faskesB = createFaskes('Faskes B');
+    $faskesC = createFaskes('Faskes C');
+    FaskesCollaboration::connect($faskesA, $faskesB);
+    $radiographerB = createStaff('radiografer', $faskesB);
+    $patientA = createPatientAt($faskesA, '1234567890123456');
+    $patientC = createPatientAt($faskesC, '3234567890123456');
+    $service = app(RadiographService::class);
+    $options = collect($service->indexData($radiographerB)['patients'])->pluck('nik');
+
+    expect($options)->toContain($patientA->nik)
+        ->not->toContain($patientC->nik);
+
+    $radiographId = $service->create([
+        'patient_nik' => $patientA->nik,
+        'image' => UploadedFile::fake()->image('radiograph.png'),
+    ], $radiographerB);
+
+    $radiograph = Radiograph::query()->findOrFail($radiographId);
+
+    expect($radiograph->faskes_id)->toBe($faskesB->id)
+        ->and($radiograph->id_radiografer)->toBe($radiographerB->id);
+
+    expect(fn () => $service->create([
+        'patient_nik' => $patientC->nik,
+        'image' => UploadedFile::fake()->image('forbidden.png'),
+    ], $radiographerB))->toThrow(HttpException::class);
+});
+
+test('radiographers can upload radiographs regardless of faskes type', function (string $type) {
+    Storage::fake('public');
+    $faskes = Faskes::query()->create(['name' => 'Faskes '.$type, 'type' => $type]);
+    $radiographer = createStaff('radiografer', $faskes);
+    $patient = createPatientAt($faskes, '1234567890123456');
+
+    $radiographId = app(RadiographService::class)->create([
+        'patient_nik' => $patient->nik,
+        'image' => UploadedFile::fake()->image('radiograph.png'),
+    ], $radiographer);
+
+    expect(Radiograph::query()->findOrFail($radiographId)->faskes_id)->toBe($faskes->id);
+})->with(['legacy', 'Puskesmas']);

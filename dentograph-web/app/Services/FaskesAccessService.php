@@ -60,7 +60,9 @@ class FaskesAccessService
             return false;
         }
 
-        return $this->canManageClinicalRadiograph($user, $radiograph);
+        return $user->role === 'admin'
+            || ($user->role === 'dokter'
+                && in_array((int) ($radiograph->faskes_id ?: $this->legacyFaskesId()), $this->accessibleFaskesIds($user), true));
     }
 
     public function canFinalize(User $user, Radiograph $radiograph): bool

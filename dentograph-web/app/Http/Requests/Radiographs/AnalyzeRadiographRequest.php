@@ -10,13 +10,14 @@ class AnalyzeRadiographRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        if (! in_array($this->user()?->role, ['admin', 'dokter', 'radiografer'], true)) {
+        if (! in_array($this->user()?->role, ['admin', 'dokter'], true)) {
             return false;
         }
 
         $radiograph = Radiograph::query()->find($this->route('radiograph'));
 
-        return ! $radiograph || app(FaskesAccessService::class)->canViewRadiograph($this->user(), $radiograph);
+        return ! $radiograph
+            || app(FaskesAccessService::class)->canEditRadiograph($this->user(), $radiograph);
     }
 
     /**

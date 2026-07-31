@@ -78,7 +78,7 @@ test('creating a patient does not send a verification email', function () {
     Notification::assertNotSentTo($patientUser, VerifyEmail::class);
 });
 
-test('admin doctor and radiographer pass analyze authorization while patient does not', function (string $role, int $status) {
+test('only admin and doctor pass analyze authorization', function (string $role, int $status) {
     $user = User::factory()->create(['role' => $role]);
 
     $this->actingAs($user)
@@ -87,7 +87,7 @@ test('admin doctor and radiographer pass analyze authorization while patient doe
 })->with([
     ['admin', 404],
     ['dokter', 404],
-    ['radiografer', 404],
+    ['radiografer', 403],
     ['pasien', 403],
 ]);
 

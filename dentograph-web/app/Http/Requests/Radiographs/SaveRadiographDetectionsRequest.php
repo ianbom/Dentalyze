@@ -9,14 +9,11 @@ class SaveRadiographDetectionsRequest extends FinalizeRadiographRequest
 {
     public function authorize(): bool
     {
-        if (! in_array($this->user()?->role, ['admin', 'dokter', 'radiografer'], true)) {
-            return false;
-        }
-
         $radiograph = Radiograph::query()->find($this->route('radiograph'));
 
         return $radiograph
-            && app(FaskesAccessService::class)->canViewRadiograph($this->user(), $radiograph);
+            && $this->user()
+            && app(FaskesAccessService::class)->canEditRadiograph($this->user(), $radiograph);
     }
 
     public function rules(): array

@@ -135,6 +135,7 @@ class PatientService
                 'phone' => $data['phone'] ?? null,
                 'password' => Hash::make($data['nik']),
                 'role' => 'pasien',
+                'faskes_id' => $data['faskes_id'],
             ]);
 
             Patient::create([
@@ -161,18 +162,20 @@ class PatientService
 
         $patientModel = $this->findByNik($patient);
         abort_unless($this->access->canManagePatient($actor, $patientModel), 403);
+        $faskesId = $actor->role === 'admin'
+            ? ($data['faskes_id'] ?? $patientModel->faskes_id)
+            : $patientModel->faskes_id;
 
-        DB::transaction(function () use ($data, $patientModel): void {
+        DB::transaction(function () use ($data, $faskesId, $patientModel): void {
             $patientModel->user()->update([
                 'name' => $data['name'],
                 'email' => $data['email'] ?? null,
                 'phone' => $data['phone'] ?? null,
+                'faskes_id' => $faskesId,
             ]);
 
             $patientModel->update([
-                'faskes_id' => $actor->role === 'admin'
-                    ? ($data['faskes_id'] ?? $patientModel->faskes_id)
-                    : $patientModel->faskes_id,
+                'faskes_id' => $faskesId,
                 'birth_place' => $data['birth_place'],
                 'birth_date' => $data['birth_date'],
                 'address' => $data['address'],

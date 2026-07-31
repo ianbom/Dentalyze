@@ -23,7 +23,8 @@ test('database seeder creates an idempotent multi faskes demo dataset', function
         ->and(User::query()->where('role', 'radiografer')->count())->toBe(4)
         ->and(User::query()->where('role', 'pasien')->count())->toBe(12)
         ->and(User::query()->whereIn('role', ['dokter', 'radiografer'])->whereNull('faskes_id')->count())->toBe(0)
-        ->and(User::query()->whereIn('role', ['admin', 'pasien'])->whereNotNull('faskes_id')->count())->toBe(0)
+        ->and(User::query()->where('role', 'admin')->whereNotNull('faskes_id')->count())->toBe(0)
+        ->and(User::query()->where('role', 'pasien')->whereNull('faskes_id')->count())->toBe(0)
         ->and(Patient::query()->whereNull('faskes_id')->count())->toBe(0)
         ->and(Patient::query()->count())->toBe(12)
         ->and(FaskesCollaboration::query()->count())->toBe(3);
@@ -31,4 +32,8 @@ test('database seeder creates an idempotent multi faskes demo dataset', function
     Faskes::query()
         ->whereIn('name', $faskesNames)
         ->each(fn (Faskes $faskes) => expect($faskes->patients()->count())->toBe(3));
+
+    Patient::query()
+        ->with('user')
+        ->each(fn (Patient $patient) => expect($patient->user?->faskes_id)->toBe($patient->faskes_id));
 });
