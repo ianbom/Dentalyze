@@ -3,10 +3,8 @@
 namespace App\Services;
 
 use App\Models\Faskes;
-use App\Models\Radiograph;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class StaffUserService
 {
@@ -62,10 +60,6 @@ class StaffUserService
         $user = $this->findByRole($user, $role);
         $nextFaskesId = $data['faskes_id'] ?? $user->faskes_id ?? Faskes::query()->where('type', 'legacy')->value('id');
 
-        if ($role === 'dokter' && (int) $nextFaskesId !== (int) $user->faskes_id) {
-            $this->ensureDoctorHasNoPendingAssignments($user);
-        }
-
         $payload = [
             'name' => $this->normalizeName($data['name'], $role),
             'email' => $data['email'],
@@ -85,10 +79,6 @@ class StaffUserService
     public function delete(string $user, string $role): void
     {
         $user = $this->findByRole($user, $role);
-
-        if ($role === 'dokter') {
-            $this->ensureDoctorHasNoPendingAssignments($user);
-        }
 
         $user->delete();
     }
@@ -111,18 +101,6 @@ class StaffUserService
         $name = preg_replace('/^drg\.\s*/i', '', $name) ?? '';
 
         return 'drg. '.trim($name);
-    }
-
-    private function ensureDoctorHasNoPendingAssignments(User $doctor): void
-    {
-        if (Radiograph::query()
-            ->where('assigned_doctor_id', $doctor->id)
-            ->where('status', 'menunggu')
-            ->exists()) {
-            throw ValidationException::withMessages([
-                'faskes_id' => 'Dokter masih memiliki tugas verifikasi yang belum selesai.',
-            ]);
-        }
     }
 
     /**

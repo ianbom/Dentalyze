@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Radiograph;
+use App\Models\User;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -11,16 +12,21 @@ use Throwable;
 
 class AiDetectionService
 {
+    public function __construct(private FaskesAccessService $access) {}
+
     /**
      * @return array<string, mixed>
      */
-    public function analyze(string $radiograph): array
+    public function analyze(string $radiograph, User $viewer): array
     {
         $radiographModel = Radiograph::query()->findOrFail($radiograph);
+        abort_unless($this->access->canViewRadiograph($viewer, $radiographModel), 403);
 
         if ($radiographModel->status === 'terverifikasi') {
             throw new ConflictHttpException(__('Radiograf sudah difinalisasi dan tidak dapat dianalisis ulang.'));
         }
+
+        abort_unless($this->access->canEditRadiograph($viewer, $radiographModel), 403);
         $timeout = $this->timeout();
 
         if (function_exists('set_time_limit')) {

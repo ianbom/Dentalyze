@@ -9,7 +9,6 @@ use App\Http\Controllers\KnowledgeController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\PublicVerificationController;
-use App\Http\Controllers\RadiographAssignmentController;
 use App\Http\Controllers\RadiographController;
 use App\Http\Controllers\RadiographerController;
 use App\Http\Controllers\ReportController;
@@ -54,10 +53,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('radiographs/{radiograph}/analyze', [RadiographController::class, 'analyze'])
         ->name('radiographs.analyze');
+    Route::patch('radiographs/{radiograph}/detections', [RadiographController::class, 'saveDetections'])
+        ->name('radiographs.detections.update');
     Route::post('radiographs/{radiograph}/finalize', [RadiographController::class, 'finalize'])
         ->name('radiographs.finalize');
-    Route::patch('radiographs/{radiograph}/assignment', [RadiographAssignmentController::class, 'update'])
-        ->name('radiographs.assignment.update');
     Route::get('radiographs-history', [RadiographController::class, 'historyIndex'])
         ->name('radiographs.history.index');
     Route::get('radiographs/{radiograph}/history', [RadiographController::class, 'history'])

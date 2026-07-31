@@ -361,15 +361,9 @@ class DashboardService
 
     private function verificationQueueQuery(User $doctor): Builder
     {
-        return Radiograph::query()
-            ->where('status', 'menunggu')
-            ->where(function (Builder $query) use ($doctor): void {
-                $query->where('assigned_doctor_id', $doctor->id)
-                    ->orWhere(function (Builder $query) use ($doctor): void {
-                        $query->whereNull('assigned_doctor_id')
-                            ->where('review_faskes_id', $doctor->faskes_id);
-                    });
-            });
+        return $this->access
+            ->scopeRadiographs(Radiograph::query(), $doctor)
+            ->where('status', 'menunggu');
     }
 
     /**

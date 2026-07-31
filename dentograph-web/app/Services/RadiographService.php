@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class RadiographService
 {
@@ -20,7 +21,7 @@ class RadiographService
     public function indexData(User $viewer): array
     {
         $radiographs = $this->access->scopeRadiographs(Radiograph::query(), $viewer)
-            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name', 'detections'])
+            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'detections'])
             ->latest()
             ->get()
             ->map(fn (Radiograph $radiograph): array => [
@@ -41,8 +42,9 @@ class RadiographService
             ],
             'permissions' => [
                 'create' => in_array($viewer->role, ['admin', 'radiografer'], true),
+                'create_patient' => $this->access->canCreatePatient($viewer),
                 'analyze' => in_array($viewer->role, ['admin', 'dokter', 'radiografer'], true),
-                'delete' => in_array($viewer->role, ['admin', 'radiografer'], true),
+                'delete' => in_array($viewer->role, ['admin', 'dokter', 'radiografer'], true),
             ],
         ];
     }
@@ -83,11 +85,8 @@ class RadiographService
             'permissions' => [
                 'analyze' => $canAnalyze,
                 'finalize' => $canFinalize,
-                'assign' => $viewer ? $this->access->canDispatch($viewer, $radiograph) : false,
+                'delete' => $viewer ? $this->canDelete($radiograph, $viewer) : false,
             ],
-            'doctorOptions' => $viewer && $this->access->canDispatch($viewer, $radiograph)
-                ? User::query()->where('role', 'dokter')->whereNotNull('faskes_id')->when($viewer->role !== 'admin', fn ($query) => $query->whereIn('faskes_id', $this->access->accessibleFaskesIds($viewer)))->with('faskes:id,name')->orderBy('name')->get()->map(fn (User $doctor) => ['id' => $doctor->id, 'name' => $doctor->name, 'faskes_name' => $doctor->faskes?->name])
-                : [],
         ];
     }
 
@@ -110,7 +109,7 @@ class RadiographService
     public function historyIndexData(User $viewer): array
     {
         $radiographs = $this->access->scopeRadiographs(Radiograph::query(), $viewer)
-            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name', 'detections'])
+            ->with(['patient.user:id,name,email,phone', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'detections'])
             ->withCount('detections')
             ->latest()
             ->get()
@@ -131,7 +130,7 @@ class RadiographService
             ],
             'viewer_role' => $viewer->role,
             'permissions' => [
-                'delete' => in_array($viewer->role, ['admin', 'radiografer'], true),
+                'delete' => in_array($viewer->role, ['admin', 'dokter', 'radiografer'], true),
             ],
         ];
     }
@@ -155,7 +154,6 @@ class RadiographService
             'id_dokter' => null,
             'id_radiografer' => $radiographer->role === 'radiografer' ? $radiographer->id : null,
             'faskes_id' => $faskesId,
-            'review_faskes_id' => $faskesId,
             'patient_nik' => $data['patient_nik'],
             'image' => $image,
             'status' => 'menunggu',
@@ -167,6 +165,11 @@ class RadiographService
     public function delete(string $radiograph, User $viewer): void
     {
         $radiograph = $this->find($radiograph);
+        abort_unless($this->access->canViewRadiograph($viewer, $radiograph), 403);
+
+        if ($radiograph->status === 'terverifikasi') {
+            throw new ConflictHttpException(__('Radiograf sudah difinalisasi dan tidak dapat dihapus.'));
+        }
 
         abort_unless($this->canDelete($radiograph, $viewer), 403);
 
@@ -192,25 +195,21 @@ class RadiographService
 
     private function canDelete(Radiograph $radiograph, User $viewer): bool
     {
-        if ($viewer->role === 'admin') {
-            return true;
-        }
-
-        return $viewer->role === 'radiografer'
-            && (int) $radiograph->faskes_id === (int) $viewer->faskes_id;
+        return $radiograph->status !== 'terverifikasi'
+            && $this->access->canDeleteRadiograph($viewer, $radiograph);
     }
 
     public function find(string $radiograph): Radiograph
     {
         return Radiograph::query()
-            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name'])
+            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name'])
             ->findOrFail($radiograph);
     }
 
     private function findForViewer(string $radiograph, ?User $viewer): Radiograph
     {
         $record = Radiograph::query()
-            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name', 'assignedDoctor:id,name'])
+            ->with(['patient.user:id,name,email,phone', 'detections', 'dokter:id,name', 'radiografer:id,name', 'faskes:id,name'])
             ->findOrFail($radiograph);
         abort_unless($viewer && $this->access->canViewRadiograph($viewer, $record), 403);
 
@@ -265,10 +264,8 @@ class RadiographService
                 'address' => $radiograph->patient?->address,
             ],
             'doctor_name' => $radiograph->dokter?->name,
-            'assigned_doctor_name' => $radiograph->assignedDoctor?->name,
             'radiographer_name' => $radiograph->radiografer?->name,
             'faskes_name' => $radiograph->faskes?->name,
-            'review_faskes_name' => $radiograph->reviewFaskes?->name,
             'image_url' => Storage::url($radiograph->image),
             'result_image_url' => $radiograph->result_image
                 ? Storage::url($radiograph->result_image).'?v='.optional($radiograph->updated_at)->timestamp

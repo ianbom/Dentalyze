@@ -3,7 +3,6 @@ import { ArrowLeft, Download, Play, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { dashboard } from '@/routes';
 import radiographs from '@/routes/radiographs';
-import assignment from '@/routes/radiographs/assignment/index';
 import radiographReports from '@/routes/reports/radiographs';
 
 type Detection = {
@@ -37,17 +36,14 @@ type Props = {
         };
         doctor_name: string | null;
         radiographer_name: string | null;
-        assigned_doctor_name: string | null;
         faskes_name: string | null;
-        review_faskes_name: string | null;
         image_url: string;
         result_image_url: string | null;
         preview_result_image?: string | null;
         status: string;
     };
     detections: Detection[];
-    permissions: { analyze: boolean; finalize: boolean; assign: boolean };
-    doctorOptions: { id: number; name: string; faskes_name: string | null }[];
+    permissions: { analyze: boolean; finalize: boolean; delete: boolean };
 };
 
 const fdiRows = [
@@ -116,7 +112,6 @@ const legend = [
 
 export default function DetectionShow({
     detections,
-    doctorOptions,
     permissions,
     radiograph,
 }: Props) {
@@ -133,7 +128,6 @@ export default function DetectionShow({
     const [analysisError, setAnalysisError] = useState<string | null>(null);
     const [analysisNotice, setAnalysisNotice] = useState<string | null>(null);
     const [selectedFdi, setSelectedFdi] = useState<string | null>(null);
-    const [selectedDoctor, setSelectedDoctor] = useState('');
     const { auth } = usePage().props as {
         auth?: { user?: { role?: string } };
     };
@@ -219,6 +213,21 @@ export default function DetectionShow({
                 result_image: resultImagePath,
             },
             {
+                onStart: () => setSaving(true),
+                onFinish: () => setSaving(false),
+            },
+        );
+    }
+
+    function saveDraft() {
+        router.patch(
+            radiographs.detections.update.url(radiograph.id_radiograph),
+            {
+                detections: items,
+                result_image: resultImagePath,
+            },
+            {
+                preserveScroll: true,
                 onStart: () => setSaving(true),
                 onFinish: () => setSaving(false),
             },
@@ -436,61 +445,7 @@ export default function DetectionShow({
                                     label="Faskes Asal"
                                     value={radiograph.faskes_name ?? '-'}
                                 />
-                                <DarkInfo
-                                    label="Tujuan Review"
-                                    value={radiograph.review_faskes_name ?? '-'}
-                                />
                             </div>
-                            {permissions.assign && !isFinalized && (
-                                <form
-                                    className="mt-5 flex flex-col gap-2 sm:flex-row"
-                                    onSubmit={(event) => {
-                                        event.preventDefault();
-
-                                        if (selectedDoctor) {
-                                            router.patch(
-                                                assignment.update.url(
-                                                    radiograph.id_radiograph,
-                                                ),
-                                                { doctor_id: selectedDoctor },
-                                            );
-                                        }
-                                    }}
-                                >
-                                    <select
-                                        className="h-11 flex-1 rounded-[14px] border border-white/20 bg-white/12 px-4 text-sm text-white"
-                                        onChange={(event) =>
-                                            setSelectedDoctor(
-                                                event.target.value,
-                                            )
-                                        }
-                                        value={selectedDoctor}
-                                    >
-                                        <option
-                                            className="text-slate-900"
-                                            value=""
-                                        >
-                                            Pilih dokter tujuan
-                                        </option>
-                                        {doctorOptions.map((doctor) => (
-                                            <option
-                                                className="text-slate-900"
-                                                key={doctor.id}
-                                                value={doctor.id}
-                                            >
-                                                {doctor.name} —{' '}
-                                                {doctor.faskes_name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        className="h-11 rounded-[14px] bg-white px-5 text-xs font-black text-[#0878e8]"
-                                        type="submit"
-                                    >
-                                        Kirim Review
-                                    </button>
-                                </form>
-                            )}
                             <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
                                 {/* STATUS */}
                                 <div
@@ -778,9 +733,20 @@ export default function DetectionShow({
                 </section>
 
                 <section className="mt-6 rounded-[30px] border border-white/70 bg-white/35 p-6 shadow-[0_24px_55px_rgba(19,184,255,0.1)] backdrop-blur-md">
+                    {permissions.analyze && !isVerified && (
+                        <button
+                            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#13b8ff_0%,#0878e8_100%)] px-6 text-xs font-black tracking-wider text-white uppercase shadow-[0_12px_28px_rgba(8,120,232,0.22)] disabled:cursor-not-allowed disabled:opacity-55"
+                            disabled={saving}
+                            onClick={saveDraft}
+                            type="button"
+                        >
+                            <Save size={16} />
+                            {saving ? 'Menyimpan' : 'Simpan Perubahan Deteksi'}
+                        </button>
+                    )}
                     {permissions.finalize && !isVerified && (
                         <button
-                            className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-emerald-500 px-6 text-xs font-black tracking-wider text-white uppercase shadow-[0_12px_28px_rgba(16,185,129,0.22)] disabled:cursor-not-allowed disabled:opacity-55"
+                            className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-emerald-500 px-6 text-xs font-black tracking-wider text-white uppercase shadow-[0_12px_28px_rgba(16,185,129,0.22)] disabled:cursor-not-allowed disabled:opacity-55"
                             disabled={saving || activeItems.length === 0}
                             onClick={save}
                             type="button"

@@ -48,7 +48,7 @@ class PatientService
                 'female' => $patients->where('gender', 'female')->count(),
             ],
             'permissions' => [
-                'create' => in_array($viewer->role, ['admin', 'radiografer'], true),
+                'create' => $this->access->canCreatePatient($viewer),
                 'update' => in_array($viewer->role, ['admin', 'radiografer'], true),
                 'delete' => in_array($viewer->role, ['admin', 'radiografer'], true),
                 'view_history' => in_array($viewer->role, ['admin', 'radiografer', 'dokter'], true),

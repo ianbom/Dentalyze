@@ -23,17 +23,9 @@ class VerificationService
 
         if ($canVerify) {
             $tasks = Radiograph::query()
-                ->with(['patient.user:id,name,email,phone', 'radiografer:id,name', 'faskes:id,name', 'reviewFaskes:id,name'])
+                ->with(['patient.user:id,name,email,phone', 'radiografer:id,name', 'faskes:id,name'])
                 ->where('status', 'menunggu')
-                ->when($doctor->role === 'dokter', function ($query) use ($doctor): void {
-                    $query->where(function ($query) use ($doctor): void {
-                        $query->where('assigned_doctor_id', $doctor->id)
-                            ->orWhere(function ($query) use ($doctor): void {
-                                $query->whereNull('assigned_doctor_id')
-                                    ->where('review_faskes_id', $doctor->faskes_id);
-                            });
-                    });
-                })
+                ->when($doctor->role === 'dokter', fn ($query) => $this->access->scopeRadiographs($query, $doctor))
                 ->latest()
                 ->get()
                 ->map(fn (Radiograph $radiograph): array => [
@@ -42,7 +34,6 @@ class VerificationService
                     'patient_nik' => $radiograph->patient_nik,
                     'radiographer_name' => $radiograph->radiografer?->name,
                     'faskes_name' => $radiograph->faskes?->name,
-                    'review_faskes_name' => $radiograph->reviewFaskes?->name,
                     'image_url' => Storage::url($radiograph->image),
                     'status' => 'menunggu',
                     'created_at' => optional($radiograph->created_at)->format('Y-m-d'),
@@ -96,21 +87,7 @@ class VerificationService
         }
 
         DB::transaction(function () use ($activeDetections, $data, $doctor, $radiographModel): void {
-            $radiographModel->detections()->delete();
-
-            foreach ($activeDetections as $item) {
-                $radiographModel->detections()->create([
-                    'id_radiograph' => $radiographModel->id_radiograph,
-                    'no_fdi' => $item['no_fdi'],
-                    'abnormality' => $item['abnormality'],
-                    'analysis' => $item['analysis'] ?? null,
-                    'bbox' => $item['bbox'] ?? null,
-                    'crop_image' => $item['crop_image'] ?? null,
-                    'confidence' => $item['confidence'] ?? null,
-                    'is_active' => true,
-                    'source' => $item['source'] ?? 'manual',
-                ]);
-            }
+            $this->replaceDetections($radiographModel, $activeDetections);
 
             $radiographModel->update([
                 'id_dokter' => $doctor->id,
@@ -124,6 +101,54 @@ class VerificationService
             'status' => 'terverifikasi',
             'detections' => $data['detections'] ?? [],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function saveDraft(string $radiograph, array $data, User $viewer): void
+    {
+        $radiographModel = Radiograph::query()
+            ->with('detections')
+            ->findOrFail($radiograph);
+        abort_unless($this->access->canViewRadiograph($viewer, $radiographModel), 403);
+
+        if ($radiographModel->status === 'terverifikasi') {
+            throw new ConflictHttpException(__('Hasil radiograf sudah difinalisasi dan tidak dapat diubah.'));
+        }
+
+        abort_unless($this->access->canEditRadiograph($viewer, $radiographModel), 403);
+
+        $activeDetections = collect($data['detections'] ?? [])
+            ->filter(fn (array $item): bool => (bool) ($item['is_active'] ?? true))
+            ->values();
+
+        DB::transaction(function () use ($activeDetections, $data, $radiographModel): void {
+            $this->replaceDetections($radiographModel, $activeDetections);
+
+            if (filled($data['result_image'] ?? null)) {
+                $radiographModel->update(['result_image' => $data['result_image']]);
+            }
+        });
+    }
+
+    private function replaceDetections(Radiograph $radiograph, iterable $detections): void
+    {
+        $radiograph->detections()->delete();
+
+        foreach ($detections as $item) {
+            $radiograph->detections()->create([
+                'id_radiograph' => $radiograph->id_radiograph,
+                'no_fdi' => $item['no_fdi'],
+                'abnormality' => $item['abnormality'],
+                'analysis' => $item['analysis'] ?? null,
+                'bbox' => $item['bbox'] ?? null,
+                'crop_image' => $item['crop_image'] ?? null,
+                'confidence' => $item['confidence'] ?? null,
+                'is_active' => true,
+                'source' => $item['source'] ?? 'manual',
+            ]);
+        }
     }
 
     private function matchesFinalResult(Radiograph $radiograph, $submitted, ?string $resultImage): bool

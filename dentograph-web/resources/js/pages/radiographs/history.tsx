@@ -22,10 +22,8 @@ type RadiographItem = {
     patient_name: string;
     patient_nik: string;
     doctor_name: string | null;
-    assigned_doctor_name: string | null;
     radiographer_name: string | null;
     faskes_name: string | null;
-    review_faskes_name: string | null;
     status: 'menunggu' | 'terverifikasi' | string;
     image_url: string;
     created_at: string | null;
@@ -76,9 +74,7 @@ export default function RadiographsHistory({
                 item.patient_name.toLowerCase().includes(keyword) ||
                 item.patient_nik.toLowerCase().includes(keyword) ||
                 item.id_radiograph.toLowerCase().includes(keyword) ||
-                item.faskes_name?.toLowerCase().includes(keyword) ||
-                item.review_faskes_name?.toLowerCase().includes(keyword) ||
-                item.assigned_doctor_name?.toLowerCase().includes(keyword);
+                item.faskes_name?.toLowerCase().includes(keyword);
 
             return matchStatus && matchKeyword;
         });
@@ -347,23 +343,15 @@ export default function RadiographsHistory({
                                                 }
                                             />
                                             <InfoBlock
-                                                label="Dokter Tujuan"
+                                                label="Dokter Pemeriksa"
                                                 value={
-                                                    item.assigned_doctor_name ??
                                                     item.doctor_name ??
-                                                    'Belum ditentukan'
+                                                    'Belum diverifikasi'
                                                 }
                                             />
                                             <InfoBlock
                                                 label="Faskes Asal"
                                                 value={item.faskes_name ?? '-'}
-                                            />
-                                            <InfoBlock
-                                                label="Tujuan Review"
-                                                value={
-                                                    item.review_faskes_name ??
-                                                    '-'
-                                                }
                                             />
                                         </div>
 

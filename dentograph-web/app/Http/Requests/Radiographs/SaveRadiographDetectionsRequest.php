@@ -4,9 +4,8 @@ namespace App\Http\Requests\Radiographs;
 
 use App\Models\Radiograph;
 use App\Services\FaskesAccessService;
-use Illuminate\Foundation\Http\FormRequest;
 
-class AnalyzeRadiographRequest extends FormRequest
+class SaveRadiographDetectionsRequest extends FinalizeRadiographRequest
 {
     public function authorize(): bool
     {
@@ -16,14 +15,15 @@ class AnalyzeRadiographRequest extends FormRequest
 
         $radiograph = Radiograph::query()->find($this->route('radiograph'));
 
-        return ! $radiograph || app(FaskesAccessService::class)->canViewRadiograph($this->user(), $radiograph);
+        return $radiograph
+            && app(FaskesAccessService::class)->canViewRadiograph($this->user(), $radiograph);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function rules(): array
     {
-        return [];
+        return [
+            ...parent::rules(),
+            'detections' => ['present', 'array'],
+        ];
     }
 }

@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Faskes;
 use App\Models\FaskesCollaboration;
-use App\Models\Radiograph;
 use Illuminate\Validation\ValidationException;
 
 class FaskesService
@@ -55,26 +54,6 @@ class FaskesService
 
     public function deleteCollaboration(FaskesCollaboration $collaboration): void
     {
-        $hasPendingAssignment = Radiograph::query()
-            ->where('status', 'menunggu')
-            ->whereNotNull('assigned_doctor_id')
-            ->where(function ($query) use ($collaboration): void {
-                $query->where(function ($query) use ($collaboration): void {
-                    $query->where('faskes_id', $collaboration->faskes_id)
-                        ->where('review_faskes_id', $collaboration->collaborator_faskes_id);
-                })->orWhere(function ($query) use ($collaboration): void {
-                    $query->where('faskes_id', $collaboration->collaborator_faskes_id)
-                        ->where('review_faskes_id', $collaboration->faskes_id);
-                });
-            })
-            ->exists();
-
-        if ($hasPendingAssignment) {
-            throw ValidationException::withMessages([
-                'collaboration' => 'Kolaborasi masih digunakan oleh tugas verifikasi yang belum selesai.',
-            ]);
-        }
-
         $collaboration->delete();
     }
 }

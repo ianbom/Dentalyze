@@ -24,10 +24,8 @@ type Radiograph = {
     patient_name: string;
     patient_nik: string;
     doctor_name: string | null;
-    assigned_doctor_name: string | null;
     radiographer_name: string | null;
     faskes_name: string | null;
-    review_faskes_name: string | null;
     image_url: string;
     status: string;
     missing_teeth_count?: number;
@@ -40,7 +38,12 @@ type DetectionIndexProps = {
     radiographs: Radiograph[];
     patients: Option[];
     filters: { total: number; waiting: number; verified: number };
-    permissions: { create: boolean; analyze: boolean; delete: boolean };
+    permissions: {
+        create: boolean;
+        create_patient: boolean;
+        analyze: boolean;
+        delete: boolean;
+    };
 };
 
 type PatientFormData = {
@@ -181,8 +184,6 @@ export default function DetectionIndex({
                 item.patient_nik,
                 item.status,
                 item.faskes_name,
-                item.review_faskes_name,
-                item.assigned_doctor_name,
             ]
                 .filter((value): value is string => Boolean(value))
                 .some((value) => value.toLowerCase().includes(query)),
@@ -368,24 +369,27 @@ export default function DetectionIndex({
                                 dokter dapat memulai deteksi AI.
                             </p>
 
-                            <button
-                                className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-sky-100/80 bg-white/50 px-4 text-xs font-black tracking-wider text-[#0878e8] uppercase shadow-[0_12px_28px_rgba(14,165,233,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-sky-50"
-                                onClick={() =>
-                                    setShowQuickPatient((value) => !value)
-                                }
-                                type="button"
-                            >
-                                {showQuickPatient ? (
-                                    <X size={15} />
-                                ) : (
-                                    <UserPlus size={15} />
-                                )}
-                                {showQuickPatient
-                                    ? 'Tutup Form Pasien'
-                                    : 'Tambah Pasien Baru'}
-                            </button>
+                            {permissions.create_patient && (
+                                <button
+                                    className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-sky-100/80 bg-white/50 px-4 text-xs font-black tracking-wider text-[#0878e8] uppercase shadow-[0_12px_28px_rgba(14,165,233,0.12)] backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-sky-50"
+                                    onClick={() =>
+                                        setShowQuickPatient((value) => !value)
+                                    }
+                                    type="button"
+                                >
+                                    {showQuickPatient ? (
+                                        <X size={15} />
+                                    ) : (
+                                        <UserPlus size={15} />
+                                    )}
+                                    {showQuickPatient
+                                        ? 'Tutup Form Pasien'
+                                        : 'Tambah Pasien Baru'}
+                                </button>
+                            )}
 
-                            {showQuickPatient && (
+                            {permissions.create_patient &&
+                                showQuickPatient && (
                                 <form
                                     className="mt-5 rounded-[22px] border border-white/75 bg-white/35 p-4 shadow-[0_18px_42px_rgba(14,165,233,0.1)] backdrop-blur-md"
                                     onSubmit={submitQuickPatient}
@@ -683,18 +687,7 @@ export default function DetectionIndex({
                                             </p>
                                             <p className="mt-1 text-xs font-semibold text-[#526184]">
                                                 {item.faskes_name ?? '-'}
-                                                {item.review_faskes_name &&
-                                                item.review_faskes_name !==
-                                                    item.faskes_name
-                                                    ? ` → ${item.review_faskes_name}`
-                                                    : ''}
                                             </p>
-                                            {item.assigned_doctor_name && (
-                                                <p className="mt-1 text-xs text-[#0878e8]">
-                                                    Dokter tujuan:{' '}
-                                                    {item.assigned_doctor_name}
-                                                </p>
-                                            )}
                                             <StatusBadge status={item.status} />
                                             <p className="mt-2 rounded-[12px] bg-white/55 px-3 py-2 text-xs font-bold text-[#526184] shadow-[0_8px_18px_rgba(19,184,255,0.08)]">
                                                 Gigi hilang / tidak terdeteksi:{' '}

@@ -8,8 +8,11 @@ use App\Models\User;
 use App\Services\DashboardService;
 use App\Services\FaskesAccessService;
 use App\Services\FaskesService;
+use App\Services\RadiographService;
 use App\Services\StaffUserService;
-use Illuminate\Validation\ValidationException;
+use App\Services\VerificationService;
+use Illuminate\Support\Facades\Http;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 function createFaskes(string $name): Faskes
 {
@@ -34,6 +37,18 @@ function createPatientAt(Faskes $faskes, string $nik): Patient
         'address' => 'Alamat',
         'age' => 26,
         'gender' => 'male',
+    ]);
+}
+
+function createRadiographAt(Faskes $faskes, Patient $patient, User $radiographer, string $id, string $status = 'menunggu'): Radiograph
+{
+    return Radiograph::query()->create([
+        'id_radiograph' => $id,
+        'id_radiografer' => $radiographer->id,
+        'patient_nik' => $patient->nik,
+        'faskes_id' => $faskes->id,
+        'image' => 'radiographs/test.jpg',
+        'status' => $status,
     ]);
 }
 
@@ -63,54 +78,44 @@ test('staff can view collaborator patients but cannot mutate them', function () 
         ->and($access->canManagePatient($radiographerA, $patientB))->toBeFalse();
 });
 
-test('origin staff can assign a pending radiograph to a collaborating doctor', function () {
+test('collaborating clinical staff can analyze and edit a pending radiograph', function () {
     $faskesA = createFaskes('Faskes A');
     $faskesB = createFaskes('Faskes B');
     FaskesCollaboration::connect($faskesA, $faskesB);
     $radiographerA = createStaff('radiografer', $faskesA);
     $doctorB = createStaff('dokter', $faskesB);
+    $radiographerB = createStaff('radiografer', $faskesB);
     $patient = createPatientAt($faskesA, '1234567890123456');
-    $radiograph = Radiograph::query()->create([
-        'id_radiograph' => 'RAD-COLLAB-1',
-        'id_radiografer' => $radiographerA->id,
-        'patient_nik' => $patient->nik,
-        'faskes_id' => $faskesA->id,
-        'review_faskes_id' => $faskesA->id,
-        'image' => 'radiographs/test.jpg',
-        'status' => 'menunggu',
-    ]);
+    $radiograph = createRadiographAt($faskesA, $patient, $radiographerA, 'RAD-COLLAB-1');
+    $access = app(FaskesAccessService::class);
+    Http::fake(['*/predict' => Http::response(['results' => []])]);
 
-    $this->actingAs($radiographerA)
-        ->patch(route('radiographs.assignment.update', $radiograph), [
-            'doctor_id' => $doctorB->id,
-        ])
+    expect($access->canEditRadiograph($doctorB, $radiograph))->toBeTrue()
+        ->and($access->canEditRadiograph($radiographerB, $radiograph))->toBeTrue();
+
+    $this->actingAs($doctorB)
+        ->post(route('radiographs.analyze', $radiograph))
         ->assertRedirect();
-
-    expect($radiograph->refresh())
-        ->assigned_doctor_id->toBe($doctorB->id)
-        ->review_faskes_id->toBe($faskesB->id);
 });
 
-test('assignment to a non collaborating doctor is rejected', function () {
+test('non collaborating staff cannot access or analyze a radiograph', function () {
     $faskesA = createFaskes('Faskes A');
     $faskesB = createFaskes('Faskes B');
     $radiographerA = createStaff('radiografer', $faskesA);
     $doctorB = createStaff('dokter', $faskesB);
     $patient = createPatientAt($faskesA, '1234567890123456');
-    $radiograph = Radiograph::query()->create([
-        'id_radiograph' => 'RAD-COLLAB-2',
-        'id_radiografer' => $radiographerA->id,
-        'patient_nik' => $patient->nik,
-        'faskes_id' => $faskesA->id,
-        'review_faskes_id' => $faskesA->id,
-        'image' => 'radiographs/test.jpg',
-        'status' => 'menunggu',
-    ]);
+    $radiograph = createRadiographAt($faskesA, $patient, $radiographerA, 'RAD-COLLAB-2');
 
     $this->actingAs($radiographerA)
-        ->patch(route('radiographs.assignment.update', $radiograph), [
-            'doctor_id' => $doctorB->id,
-        ])
+        ->get(route('radiographs.show', $radiograph))
+        ->assertOk();
+
+    $this->actingAs($doctorB)
+        ->get(route('radiographs.show', $radiograph))
+        ->assertForbidden();
+
+    $this->actingAs($doctorB)
+        ->post(route('radiographs.analyze', $radiograph))
         ->assertForbidden();
 });
 
@@ -152,69 +157,55 @@ test('collaborating staff dashboard only counts directly accessible data', funct
         ->and($data['recent_patients'])->toHaveCount(2);
 });
 
-test('only origin staff and assigned doctor can edit shared radiograph', function () {
+test('collaborating doctor can finalize while collaborating radiographer cannot', function () {
     $faskesA = createFaskes('Faskes A');
     $faskesB = createFaskes('Faskes B');
     FaskesCollaboration::connect($faskesA, $faskesB);
     $originRadiographer = createStaff('radiografer', $faskesA);
-    $assignedDoctor = createStaff('dokter', $faskesB);
-    $otherDoctor = createStaff('dokter', $faskesB);
+    $doctor = createStaff('dokter', $faskesB);
+    $radiographer = createStaff('radiografer', $faskesB);
     $patient = createPatientAt($faskesA, '1234567890123456');
-    $radiograph = Radiograph::query()->create([
-        'id_radiograph' => 'RAD-EDIT-SCOPE',
-        'id_radiografer' => $originRadiographer->id,
-        'assigned_doctor_id' => $assignedDoctor->id,
-        'patient_nik' => $patient->nik,
-        'faskes_id' => $faskesA->id,
-        'review_faskes_id' => $faskesB->id,
-        'image' => 'radiographs/test.jpg',
-        'status' => 'menunggu',
-    ]);
+    $radiograph = createRadiographAt($faskesA, $patient, $originRadiographer, 'RAD-FINALIZE');
     $access = app(FaskesAccessService::class);
 
-    expect($access->canEditRadiograph($originRadiographer, $radiograph))->toBeTrue()
-        ->and($access->canEditRadiograph($assignedDoctor, $radiograph))->toBeTrue()
-        ->and($access->canEditRadiograph($otherDoctor, $radiograph))->toBeFalse();
+    expect($access->canFinalize($doctor, $radiograph))->toBeTrue()
+        ->and($access->canFinalize($radiographer, $radiograph))->toBeFalse();
+
+    app(VerificationService::class)->finalize($radiograph->id_radiograph, [
+        'detections' => [[
+            'no_fdi' => '11',
+            'abnormality' => 'Karies',
+            'analysis' => 'Perlu perawatan',
+            'is_active' => true,
+            'source' => 'manual',
+        ]],
+    ], $doctor);
+
+    expect($radiograph->refresh()->status)->toBe('terverifikasi')
+        ->and($radiograph->id_dokter)->toBe($doctor->id);
 });
 
-test('pending cross faskes assignment blocks collaboration deletion', function () {
+test('collaboration deletion immediately revokes shared radiograph access', function () {
     $faskesA = createFaskes('Faskes A');
     $faskesB = createFaskes('Faskes B');
     $collaboration = FaskesCollaboration::connect($faskesA, $faskesB);
     $radiographer = createStaff('radiografer', $faskesA);
     $doctor = createStaff('dokter', $faskesB);
     $patient = createPatientAt($faskesA, '1234567890123456');
-    Radiograph::query()->create([
-        'id_radiograph' => 'RAD-PENDING-COLLAB',
-        'id_radiografer' => $radiographer->id,
-        'assigned_doctor_id' => $doctor->id,
-        'patient_nik' => $patient->nik,
-        'faskes_id' => $faskesA->id,
-        'review_faskes_id' => $faskesB->id,
-        'image' => 'radiographs/test.jpg',
-        'status' => 'menunggu',
-    ]);
+    $radiograph = createRadiographAt($faskesA, $patient, $radiographer, 'RAD-PENDING-COLLAB');
+    $access = app(FaskesAccessService::class);
 
-    expect(fn () => app(FaskesService::class)->deleteCollaboration($collaboration))
-        ->toThrow(ValidationException::class);
+    expect($access->canViewRadiograph($doctor, $radiograph))->toBeTrue();
 
-    expect($collaboration->fresh())->not->toBeNull();
+    app(FaskesService::class)->deleteCollaboration($collaboration);
+
+    expect($access->canViewRadiograph($doctor, $radiograph))->toBeFalse();
 });
 
-test('doctor with pending assignment cannot move faskes or be deleted', function () {
+test('doctor can move faskes without radiograph assignment restrictions', function () {
     $faskesA = createFaskes('Faskes A');
     $faskesB = createFaskes('Faskes B');
     $doctor = createStaff('dokter', $faskesA);
-    $patient = createPatientAt($faskesA, '1234567890123456');
-    Radiograph::query()->create([
-        'id_radiograph' => 'RAD-PENDING-DOCTOR',
-        'assigned_doctor_id' => $doctor->id,
-        'patient_nik' => $patient->nik,
-        'faskes_id' => $faskesA->id,
-        'review_faskes_id' => $faskesA->id,
-        'image' => 'radiographs/test.jpg',
-        'status' => 'menunggu',
-    ]);
     $service = app(StaffUserService::class);
     $payload = [
         'name' => $doctor->name,
@@ -223,10 +214,56 @@ test('doctor with pending assignment cannot move faskes or be deleted', function
         'faskes_id' => $faskesB->id,
     ];
 
-    expect(fn () => $service->update((string) $doctor->id, $payload, 'dokter'))
-        ->toThrow(ValidationException::class)
-        ->and(fn () => $service->delete((string) $doctor->id, 'dokter'))
-        ->toThrow(ValidationException::class);
+    $service->update((string) $doctor->id, $payload, 'dokter');
 
-    expect($doctor->fresh()->faskes_id)->toBe($faskesA->id);
+    expect($doctor->fresh()->faskes_id)->toBe($faskesB->id);
+});
+
+test('collaborating staff can delete pending radiographs but finalized radiographs stay locked', function () {
+    $faskesA = createFaskes('Faskes A');
+    $faskesB = createFaskes('Faskes B');
+    FaskesCollaboration::connect($faskesA, $faskesB);
+    $originRadiographer = createStaff('radiografer', $faskesA);
+    $collaboratingDoctor = createStaff('dokter', $faskesB);
+    $patient = createPatientAt($faskesA, '1234567890123456');
+    $pending = createRadiographAt($faskesA, $patient, $originRadiographer, 'RAD-DELETE-PENDING');
+    $finalized = createRadiographAt($faskesA, $patient, $originRadiographer, 'RAD-DELETE-FINAL', 'terverifikasi');
+
+    $this->actingAs($collaboratingDoctor)
+        ->delete(route('radiographs.destroy', $pending))
+        ->assertRedirect();
+
+    $this->assertDatabaseMissing('radiographs', ['id_radiograph' => $pending->id_radiograph]);
+
+    expect(fn () => app(RadiographService::class)->delete($finalized->id_radiograph, $collaboratingDoctor))
+        ->toThrow(ConflictHttpException::class);
+});
+
+test('collaborating radiographer can persist detection edits without finalizing', function () {
+    $faskesA = createFaskes('Faskes A');
+    $faskesB = createFaskes('Faskes B');
+    FaskesCollaboration::connect($faskesA, $faskesB);
+    $originRadiographer = createStaff('radiografer', $faskesA);
+    $collaboratingRadiographer = createStaff('radiografer', $faskesB);
+    $patient = createPatientAt($faskesA, '1234567890123456');
+    $radiograph = createRadiographAt($faskesA, $patient, $originRadiographer, 'RAD-DRAFT-DETECTIONS');
+    $radiograph->detections()->createMany([
+        ['no_fdi' => '11', 'abnormality' => 'Karies', 'is_active' => true, 'source' => 'ai'],
+        ['no_fdi' => '12', 'abnormality' => 'Normal', 'is_active' => true, 'source' => 'ai'],
+    ]);
+
+    $this->actingAs($collaboratingRadiographer)
+        ->patch(route('radiographs.detections.update', $radiograph), [
+            'detections' => [[
+                'no_fdi' => '11',
+                'abnormality' => 'Karies',
+                'analysis' => 'Perlu perawatan',
+                'is_active' => true,
+                'source' => 'manual',
+            ]],
+        ])
+        ->assertRedirect();
+
+    expect($radiograph->refresh()->status)->toBe('menunggu')
+        ->and($radiograph->detections()->pluck('no_fdi')->all())->toBe(['11']);
 });

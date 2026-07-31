@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Radiographs\AnalyzeRadiographRequest;
 use App\Http\Requests\Radiographs\FinalizeRadiographRequest;
+use App\Http\Requests\Radiographs\SaveRadiographDetectionsRequest;
 use App\Http\Requests\Radiographs\StoreRadiographRequest;
 use App\Services\AiDetectionService;
 use App\Services\RadiographService;
@@ -61,7 +62,7 @@ class RadiographController extends Controller
 
     public function analyze(AnalyzeRadiographRequest $request, string $radiograph, AiDetectionService $service): JsonResponse|RedirectResponse
     {
-        $result = $service->analyze($radiograph);
+        $result = $service->analyze($radiograph, $request->user());
 
         if ($request->expectsJson()) {
             return response()->json($result, filled($result['results']) ? 200 : 422);
@@ -86,6 +87,15 @@ class RadiographController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Radiograph finalized.')]);
 
         return to_route('radiographs.show', $radiograph);
+    }
+
+    public function saveDetections(SaveRadiographDetectionsRequest $request, string $radiograph, VerificationService $service): RedirectResponse
+    {
+        $service->saveDraft($radiograph, $request->validated(), $request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Detection changes saved.')]);
+
+        return back();
     }
 
     public function destroy(Request $request, string $radiograph, RadiographService $service): RedirectResponse

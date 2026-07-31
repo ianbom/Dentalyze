@@ -41,6 +41,11 @@ class FaskesAccessService
                 && (int) ($user->faskes_id ?: $this->legacyFaskesId()) === (int) ($patient->faskes_id ?: $this->legacyFaskesId()));
     }
 
+    public function canCreatePatient(User $user): bool
+    {
+        return in_array($user->role, ['admin', 'radiografer'], true);
+    }
+
     public function canViewRadiograph(User $user, Radiograph $radiograph): bool
     {
         return $user->role === 'admin'
@@ -49,30 +54,13 @@ class FaskesAccessService
                 && in_array((int) ($radiograph->faskes_id ?: $this->legacyFaskesId()), $this->accessibleFaskesIds($user), true));
     }
 
-    public function canDispatch(User $user, Radiograph $radiograph): bool
-    {
-        return $radiograph->status !== 'terverifikasi'
-            && ($user->role === 'admin'
-                || (in_array($user->role, ['dokter', 'radiografer'], true)
-                    && (int) $user->faskes_id === (int) $radiograph->faskes_id));
-    }
-
     public function canEditRadiograph(User $user, Radiograph $radiograph): bool
     {
         if ($radiograph->status === 'terverifikasi') {
             return false;
         }
 
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        $isOriginStaff = in_array($user->role, ['dokter', 'radiografer'], true)
-            && (int) $user->faskes_id === (int) $radiograph->faskes_id;
-        $isAssignedDoctor = $user->role === 'dokter'
-            && (int) $radiograph->assigned_doctor_id === (int) $user->id;
-
-        return $isOriginStaff || $isAssignedDoctor;
+        return $this->canManageClinicalRadiograph($user, $radiograph);
     }
 
     public function canFinalize(User $user, Radiograph $radiograph): bool
@@ -82,9 +70,12 @@ class FaskesAccessService
         }
 
         return $user->role === 'dokter'
-            && ($radiograph->assigned_doctor_id
-                ? (int) $radiograph->assigned_doctor_id === (int) $user->id
-                : (int) $radiograph->review_faskes_id === (int) $user->faskes_id);
+            && in_array((int) ($radiograph->faskes_id ?: $this->legacyFaskesId()), $this->accessibleFaskesIds($user), true);
+    }
+
+    public function canDeleteRadiograph(User $user, Radiograph $radiograph): bool
+    {
+        return $this->canManageClinicalRadiograph($user, $radiograph);
     }
 
     public function scopePatients(Builder $query, User $user): Builder
@@ -119,6 +110,13 @@ class FaskesAccessService
                 $query->orWhereNull('faskes_id');
             }
         });
+    }
+
+    private function canManageClinicalRadiograph(User $user, Radiograph $radiograph): bool
+    {
+        return $user->role === 'admin'
+            || (in_array($user->role, ['dokter', 'radiografer'], true)
+                && in_array((int) ($radiograph->faskes_id ?: $this->legacyFaskesId()), $this->accessibleFaskesIds($user), true));
     }
 
     private function legacyFaskesId(): ?int

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Patients\StorePatientRequest;
 use App\Http\Requests\Patients\UpdatePatientRequest;
+use App\Services\FaskesAccessService;
 use App\Services\PatientService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,16 +18,16 @@ class PatientController extends Controller
         return Inertia::render('patients/index', $service->indexData($request->user()));
     }
 
-    public function create(PatientService $service): Response
+    public function create(PatientService $service, FaskesAccessService $access): Response
     {
-        abort_unless(in_array(request()->user()?->role, ['admin', 'radiografer'], true), 403);
+        abort_unless($access->canCreatePatient(request()->user()), 403);
 
         return Inertia::render('patients/create', $service->formData(request()->user()));
     }
 
-    public function store(StorePatientRequest $request, PatientService $service): RedirectResponse
+    public function store(StorePatientRequest $request, PatientService $service, FaskesAccessService $access): RedirectResponse
     {
-        abort_unless(in_array($request->user()->role, ['admin', 'radiografer'], true), 403);
+        abort_unless($access->canCreatePatient($request->user()), 403);
 
         $data = $request->validated();
         $patient = $service->create($data, $request->user());
