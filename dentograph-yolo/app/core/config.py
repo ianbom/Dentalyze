@@ -54,6 +54,11 @@ class Settings:
     db_username: str = field(default_factory=lambda: os.getenv("DB_USERNAME", "root"))
     db_password: str = field(default_factory=lambda: os.getenv("DB_PASSWORD", ""))
     rag_top_k: int = field(default_factory=lambda: int(os.getenv("AI_RAG_TOP_K", "4")))
+    external_knowledge_enabled: bool = field(default_factory=lambda: _env_bool("EXTERNAL_KNOWLEDGE_ENABLED", True))
+    alodokter_search_url: str = field(default_factory=lambda: os.getenv("ALODOKTER_SEARCH_URL", "https://www.alodokter.com/search?s={query}"))
+    alodokter_top_k: int = field(default_factory=lambda: int(os.getenv("ALODOKTER_TOP_K", "3")))
+    alodokter_timeout: int = field(default_factory=lambda: int(os.getenv("ALODOKTER_TIMEOUT", "5")))
+    external_cache_ttl: int = field(default_factory=lambda: int(os.getenv("EXTERNAL_KNOWLEDGE_CACHE_TTL", "300")))
 
 
 settings = Settings()

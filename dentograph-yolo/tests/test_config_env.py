@@ -53,6 +53,11 @@ def test_env_files_include_all_runtime_settings():
         "VIT_MODEL_PATH",
         "CONF_YOLO",
         "NMS_IOU_THRESHOLD",
+        "EXTERNAL_KNOWLEDGE_ENABLED",
+        "ALODOKTER_SEARCH_URL",
+        "ALODOKTER_TOP_K",
+        "ALODOKTER_TIMEOUT",
+        "EXTERNAL_KNOWLEDGE_CACHE_TTL",
     ]
 
     assert _env_keys(Path(".env")) == expected_keys
@@ -79,6 +84,11 @@ def test_settings_match_current_fastapi_env(monkeypatch):
     monkeypatch.setenv("DB_USERNAME", "tester")
     monkeypatch.setenv("DB_PASSWORD", "secret")
     monkeypatch.setenv("AI_RAG_TOP_K", "8")
+    monkeypatch.setenv("EXTERNAL_KNOWLEDGE_ENABLED", "true")
+    monkeypatch.setenv("ALODOKTER_SEARCH_URL", "https://www.alodokter.com/search?s={query}")
+    monkeypatch.setenv("ALODOKTER_TOP_K", "2")
+    monkeypatch.setenv("ALODOKTER_TIMEOUT", "7")
+    monkeypatch.setenv("EXTERNAL_KNOWLEDGE_CACHE_TTL", "60")
     monkeypatch.setenv("YOLO_MODEL_PATH", "best22.pt")
     monkeypatch.setenv("VIT_MODEL_PATH", "best_kelainangigi.pth")
 
@@ -103,5 +113,10 @@ def test_settings_match_current_fastapi_env(monkeypatch):
     assert settings.db_username == "tester"
     assert settings.db_password == "secret"
     assert settings.rag_top_k == 8
+    assert settings.external_knowledge_enabled is True
+    assert settings.alodokter_search_url == "https://www.alodokter.com/search?s={query}"
+    assert settings.alodokter_top_k == 2
+    assert settings.alodokter_timeout == 7
+    assert settings.external_cache_ttl == 60
     assert settings.yolo_model_path == BASE_DIR / "best22.pt"
     assert settings.vit_model_path == BASE_DIR / "best_kelainangigi.pth"

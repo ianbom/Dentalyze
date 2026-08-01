@@ -19,6 +19,11 @@ def test_llm_chat_adds_rag_knowledge_to_context(monkeypatch):
     request = ChatRequest(role="pasien", question="Apa itu impaksi?", context={"radiographs": []})
 
     monkeypatch.setattr(llm_chat.knowledge_retrieval_service, "retrieve", fake_retrieve)
+
+    async def fake_external(_question, _context):
+        return []
+
+    monkeypatch.setattr(llm_chat.external_knowledge_service, "retrieve", fake_external)
     context = asyncio.run(llm_chat.llm_chat_service._context_with_rag(request))
 
     assert len(context["knowledge"]) == 1
@@ -141,3 +146,94 @@ def test_active_model_uses_provider_fallbacks(monkeypatch):
     assert llm_chat.llm_chat_service._active_model("gemini") == "gemini-fallback"
     assert llm_chat.llm_chat_service._active_model("ollama") == "ollama-fallback"
     assert llm_chat.llm_chat_service._active_model("deepseek") == ""
+
+
+def test_context_text_explains_knowledge_only_intent():
+    text = llm_chat.llm_chat_service._context_to_text(
+        {
+            "intent": "knowledge",
+            "lookup_status": "not_requested",
+            "viewer": {"role": "pasien", "name": "Ian"},
+            "radiographs": [],
+            "knowledge": [{"title": "Impaksi", "content": "Impaksi adalah gigi yang gagal erupsi."}],
+        }
+    )
+
+    assert "Intent pertanyaan: knowledge" in text
+    assert "Data klinis personal tidak diperlukan" in text
+    assert "Impaksi" in text
+
+
+def test_context_text_explains_missing_target_without_inventing_data():
+    text = llm_chat.llm_chat_service._context_to_text(
+        {
+            "intent": "patient_name",
+            "lookup_status": "not_found",
+            "viewer": {"role": "dokter", "name": "Dokter"},
+            "radiographs": [],
+            "knowledge": [],
+        }
+    )
+
+    assert "Status pencarian data: not_found" in text
+    assert "jangan mengarang" in text.lower()
+
+
+def test_trace_prints_structured_terminal_line(capsys):
+    llm_chat._trace("RAG", question="Apa itu impaksi?", api_key="secret")
+
+    output = capsys.readouterr().out
+    assert "[AI_TRACE][FastAPI][RAG]" in output
+    assert "Apa itu impaksi?" in output
+    assert "secret" not in output
+    assert "[REDACTED]" in output
+from app.services.knowledge_retrieval import KnowledgeRetrievalService
+from app.services import llm_chat
+
+
+def test_rag_trace_summary_contains_only_similarity_metadata():
+    summary = KnowledgeRetrievalService._compact_results([
+        {
+            "id": 12,
+            "title": "Impaksi Gigi",
+            "content": "RAHASIA_CONTENT_YANG_TIDAK_BOLEH_TAMPIL",
+            "relevance_score": 0.912345,
+        },
+        {
+            "id": 7,
+            "title": "Gigi Bungsu",
+            "content": "CONTENT_LAIN",
+            "relevance_score": 0.845678,
+        },
+    ])
+
+    assert summary == [
+        {"rank": 1, "id": 12, "title": "Impaksi Gigi", "cosine_similarity": 0.9123},
+        {"rank": 2, "id": 7, "title": "Gigi Bungsu", "cosine_similarity": 0.8457},
+    ]
+    assert "RAHASIA_CONTENT" not in str(summary)
+
+
+def test_llm_trace_context_summary_excludes_content():
+    summary = llm_chat.llm_chat_service._trace_context_summary(
+        {
+            "intent": "knowledge",
+            "lookup_status": "not_requested",
+            "knowledge": [
+                {
+                    "id": 12,
+                    "title": "Impaksi Gigi",
+                    "content": "HIDDEN_CONTENT",
+                    "relevance_score": 0.912345,
+                    "source": "ai_knowledge_bases",
+                }
+            ],
+            "external_sources": [{"title": "Artikel", "url": "https://www.alodokter.com/a", "content": "HIDDEN_EXTERNAL"}],
+            "radiographs": [],
+        }
+    )
+
+    assert summary["knowledge"] == [{"rank": 1, "id": 12, "title": "Impaksi Gigi", "source": "ai_knowledge_bases", "cosine_similarity": 0.9123}]
+    assert summary["external_sources"] == [{"title": "Artikel", "url": "https://www.alodokter.com/a"}]
+    assert "HIDDEN_CONTENT" not in str(summary)
+    assert "HIDDEN_EXTERNAL" not in str(summary)
