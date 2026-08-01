@@ -1,7 +1,9 @@
-import { Head } from '@inertiajs/react';
-import { Bot, SendHorizontal, Sparkles, UserRound } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { Bot, SendHorizontal, Sparkles, Trash2, UserRound } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
+import ConfirmDeleteDialog from '@/components/confirm-delete-dialog';
+import aiChatRoutes from '@/routes/ai-chat';
 
 type Message = {
     id?: number;
@@ -30,6 +32,8 @@ export default function AiChatIndex({
     const [messages, setMessages] = useState<Message[]>(initialMessages);
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const isPatient = roleContext.role === 'pasien';
     const csrf = useMemo(
         () =>
@@ -94,6 +98,17 @@ export default function AiChatIndex({
         }
     }
 
+    function deleteChat() {
+        router.delete(aiChatRoutes.destroy.url(session.id), {
+            onStart: () => setDeleting(true),
+            onSuccess: () => {
+                setDeleteDialogOpen(false);
+                setMessages([]);
+            },
+            onFinish: () => setDeleting(false),
+        });
+    }
+
     return (
         <>
             <Head title="AI Chat" />
@@ -111,18 +126,30 @@ export default function AiChatIndex({
                             className="pointer-events-none absolute -right-14 -bottom-24 w-72 opacity-15"
                             src="/asset/images/gigi.png"
                         />
-                        <div className="relative z-10">
-                            <p className="text-[11px] font-black tracking-[0.34em] text-white/70 uppercase">
-                                Dentalyze AI Assistant
-                            </p>
-                            <h1 className="mt-3 text-[34px] leading-tight font-black tracking-[-0.04em]">
-                                Chatbot Klinis Berbasis Role
-                            </h1>
-                            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/80">
-                                Jawaban dibatasi oleh data yang boleh diakses
-                                role Anda, lalu bisa diperkaya jurnal dari
-                                knowledge base.
-                            </p>
+                        <div className="relative z-10 flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-black tracking-[0.34em] text-white/70 uppercase">
+                                    Dentalyze AI Assistant
+                                </p>
+                                <h1 className="mt-3 text-[34px] leading-tight font-black tracking-[-0.04em]">
+                                    Chatbot Klinis Berbasis Role
+                                </h1>
+                                <p className="mt-3 max-w-2xl text-sm leading-7 text-white/80">
+                                    Jawaban dibatasi oleh data yang boleh diakses
+                                    role Anda, lalu bisa diperkaya jurnal dari
+                                    knowledge base.
+                                </p>
+                            </div>
+                            <button
+                                aria-label="Hapus percakapan"
+                                className="grid size-11 shrink-0 place-items-center rounded-[14px] border border-white/30 bg-white/15 text-white transition hover:bg-rose-500/90 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={loading || deleting}
+                                onClick={() => setDeleteDialogOpen(true)}
+                                title="Hapus percakapan"
+                                type="button"
+                            >
+                                <Trash2 size={18} />
+                            </button>
                         </div>
                     </header>
 
@@ -168,11 +195,6 @@ export default function AiChatIndex({
                                     <p className="whitespace-pre-wrap">
                                         {item.content}
                                     </p>
-                                    {item.provider && (
-                                        <p className="mt-2 text-[10px] font-black tracking-[0.2em] uppercase opacity-60">
-                                            {item.provider}
-                                        </p>
-                                    )}
                                 </div>
 
                                 {item.role === 'user' && (
@@ -186,7 +208,7 @@ export default function AiChatIndex({
                         {loading && (
                             <div className="flex items-center gap-3 text-sm font-semibold text-[#0878e8]">
                                 <span className="size-3 animate-ping rounded-full bg-[#13b8ff]" />
-                                AI sedang membaca konteks database...
+                                Jawaban sedang diproses
                             </div>
                         )}
                     </div>
@@ -215,6 +237,14 @@ export default function AiChatIndex({
                     </form>
                 </section>
             </div>
+            <ConfirmDeleteDialog
+                description="Seluruh pesan dalam percakapan ini akan dihapus dan tidak dapat dipulihkan."
+                onConfirm={deleteChat}
+                onOpenChange={setDeleteDialogOpen}
+                open={deleteDialogOpen}
+                processing={deleting}
+                title="Hapus percakapan?"
+            />
         </>
     );
 }

@@ -9,8 +9,12 @@ import {
     Trash2,
     XCircle,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ConfirmDeleteDialog from '@/components/confirm-delete-dialog';
+import ListPagination, {
+    getPageItems,
+    getTotalPages,
+} from '@/components/list-pagination';
 import knowledgeRoutes from '@/routes/knowledge';
 
 type Knowledge = {
@@ -59,6 +63,8 @@ export default function KnowledgeIndex({ knowledge }: KnowledgeIndexProps) {
     const [status, setStatus] = useState('all');
     const [deletingKnowledge, setDeletingKnowledge] =
         useState<Knowledge | null>(null);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
 
     const visibleKnowledge = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -82,6 +88,17 @@ export default function KnowledgeIndex({ knowledge }: KnowledgeIndexProps) {
             return matchesSearch && matchesCategory && matchesStatus;
         });
     }, [category, knowledge, search, status]);
+
+    const totalPages = getTotalPages(visibleKnowledge.length, pageSize);
+    const currentPage = Math.min(page, totalPages);
+    const paginatedKnowledge = useMemo(
+        () => getPageItems(visibleKnowledge, currentPage, pageSize),
+        [currentPage, pageSize, visibleKnowledge],
+    );
+
+    useEffect(() => {
+        setPage(1);
+    }, [category, search, status]);
 
     function deleteKnowledge(item: Knowledge) {
         router.delete(knowledgeRoutes.destroy.url(item.id), {
@@ -190,7 +207,7 @@ export default function KnowledgeIndex({ knowledge }: KnowledgeIndexProps) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/60">
-                                    {visibleKnowledge.map((item) => (
+                                    {paginatedKnowledge.map((item) => (
                                         <tr
                                             className="text-sm text-[#526184] transition hover:bg-white/45"
                                             key={item.id}
@@ -285,6 +302,15 @@ export default function KnowledgeIndex({ knowledge }: KnowledgeIndexProps) {
                                 </p>
                             </div>
                         </div>
+                    )}
+                    {visibleKnowledge.length > 0 && (
+                        <ListPagination
+                            page={currentPage}
+                            pageSize={pageSize}
+                            setPage={setPage}
+                            setPageSize={setPageSize}
+                            total={visibleKnowledge.length}
+                        />
                     )}
                 </section>
                 <ConfirmDeleteDialog

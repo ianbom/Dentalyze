@@ -33,6 +33,7 @@ Route::middleware(['auth'])->group(function () {
     Route::inertia('patient-insight', 'patients/insight')->name('patients.insight');
     Route::get('ai-chat', [AiChatController::class, 'index'])->name('ai-chat.index');
     Route::post('ai-chat/message', [AiChatController::class, 'message'])->name('ai-chat.message');
+    Route::delete('ai-chat/{session}', [AiChatController::class, 'destroy'])->name('ai-chat.destroy');
 
     Route::resource('users', UserController::class);
     Route::resource('knowledge', KnowledgeController::class)

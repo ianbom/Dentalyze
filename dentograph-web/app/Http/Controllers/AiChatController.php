@@ -6,6 +6,7 @@ use App\Models\AiChatSession;
 use App\Services\AiContextService;
 use App\Services\AiLlmService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -70,8 +71,6 @@ class AiChatController extends Controller
             'content' => $validated['message'],
         ]);
 
-        ;
-
         $answer = $llm->chat($user, $validated['message']);
 
         $assistantMessage = $session->messages()->create([
@@ -90,5 +89,21 @@ class AiChatController extends Controller
                 'provider' => $answer['provider'],
             ],
         ]);
+    }
+
+    public function destroy(Request $request, string $session): RedirectResponse
+    {
+        $chatSession = AiChatSession::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($session);
+
+        $chatSession->delete();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => __('Chat berhasil dihapus.'),
+        ]);
+
+        return to_route('ai-chat.index');
     }
 }
