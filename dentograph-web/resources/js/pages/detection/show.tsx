@@ -741,7 +741,7 @@ export default function DetectionShow({
                             type="button"
                         >
                             <Save size={16} />
-                            {saving ? 'Menyimpan' : 'Simpan Perubahan Deteksi'}
+                            {saving ? 'Menyimpan' : 'Simpan Sementara'}
                         </button>
                     )}
                     {permissions.finalize && !isVerified && (
