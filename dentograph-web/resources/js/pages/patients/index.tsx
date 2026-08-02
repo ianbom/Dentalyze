@@ -315,12 +315,6 @@ export default function PatientsIndex({
                                                 {patient.nik}
                                             </td>
                                             <td className="px-5 py-4">
-                                                <span className="inline-flex items-center gap-2 rounded-[10px] border border-white/70 bg-white/45 px-3 py-1 text-xs font-semibold text-[#526184] shadow-sm backdrop-blur-md">
-                                                    <Building2 size={13} />
-                                                    {patient.faskes_name ?? '-'}
-                                                </span>
-                                            </td>
-                                            <td className="px-5 py-4">
                                                 <div className="space-y-1 text-xs">
                                                     <p className="flex items-center gap-2">
                                                         <Mail size={13} />
@@ -351,6 +345,12 @@ export default function PatientsIndex({
                                                             patient.gender
                                                         ]
                                                     }
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className="inline-flex items-center gap-2 rounded-[10px] border border-white/70 bg-white/45 px-3 py-1 text-xs font-semibold text-[#526184] shadow-sm backdrop-blur-md">
+                                                    <Building2 size={13} />
+                                                    {patient.faskes_name ?? '-'}
                                                 </span>
                                             </td>
                                             <td className="px-5 py-4">
